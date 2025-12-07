@@ -79,9 +79,17 @@ Desktop.ini
 .env.local
 .env.*.local
 
-# Firebase credentials
+# Firebase credentials and sensitive config
 **/firebase-credentials.json
 **/serviceAccountKey.json
+**/*-adminsdk-*.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Application configuration with secrets
+**/application-prod.yml
+**/application-secrets.yml
+**/application-local.yml
 
 # Python
 __pycache__/
