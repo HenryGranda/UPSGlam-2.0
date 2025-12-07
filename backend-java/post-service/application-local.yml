@@ -1,0 +1,16 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: post-service
+  
+  # Sin base de datos por ahora
+  r2dbc:
+    enabled: false
+  
+logging:
+  level:
+    root: INFO
+    ec.ups.upsglam: DEBUG
+    org.springframework.web: DEBUG

@@ -1,3 +1,12 @@
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\controller\HealthController.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\handler\CommentHandler.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\handler\LikeHandler.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\handler\MediaHandler.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\handler\PostHandler.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\router\CommentRouter.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\router\LikeRouter.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\router\MediaRouter.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\api\router\PostRouter.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\application\service\CommentService.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\application\service\LikeService.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\application\service\PostService.java
@@ -16,7 +25,10 @@ C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\exception\UnauthorizedException.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\like\dto\LikeResponse.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\like\model\Like.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\media\dto\TempImageResponse.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\media\dto\UploadImageResponse.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\media\model\TempImage.java
+C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\media\service\ImageService.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\post\dto\CreatePostRequest.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\post\dto\FeedResponse.java
 C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\post-service\src\main\java\ec\ups\upsglam\post\domain\post\dto\PostResponse.java

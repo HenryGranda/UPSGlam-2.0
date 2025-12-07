@@ -53,6 +53,7 @@ logging:
     root: INFO
     ec.ups.upsglam: DEBUG
     org.springframework.web: DEBUG
+    org.springframework.web.reactive.function.server: TRACE
     io.r2dbc: DEBUG
 
 # Actuator

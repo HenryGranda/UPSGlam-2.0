@@ -1,0 +1,81 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        # ===============================
+        # POST SERVICE ROUTES
+        # ===============================
+        - id: post-service-feed
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/feed, /api/posts/**, /api/images/**, /api/users/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # ===============================
+        # CUDA SERVICE ROUTES (PyCUDA)
+        # ===============================
+        - id: cuda-service
+          uri: http://localhost:5000
+          predicates:
+            - Path=/api/filters/**
+          filters:
+            - RewritePath=/api/filters/(?<segment>.*), /$\{segment}
+        
+        # ===============================
+        # HEALTH CHECKS
+        # ===============================
+        - id: post-service-health
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/health/posts
+          filters:
+            - RewritePath=/api/health/posts, /api/health
+        
+        - id: cuda-service-health
+          uri: http://localhost:5000
+          predicates:
+            - Path=/api/health/cuda
+          filters:
+            - RewritePath=/api/health/cuda, /health
+      
+      # Global CORS Configuration
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Content-Type
+              - Authorization
+            maxAge: 3600
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    root: INFO
+    ec.ups.upsglam: DEBUG
+    org.springframework.cloud.gateway: DEBUG
