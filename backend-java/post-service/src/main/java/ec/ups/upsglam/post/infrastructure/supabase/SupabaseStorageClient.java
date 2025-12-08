@@ -93,8 +93,13 @@ public class SupabaseStorageClient {
     public Mono<Void> deleteFile(String path) {
         log.debug("Eliminando archivo: {}", path);
         
+        // Extraer bucket y path: path puede venir como "posts/file.jpg" o solo "file.jpg"
+        String filePath = path.contains("/") ? path : "posts/" + path;
+        
         return webClient.delete()
-                .uri("/object/{bucket}/{path}", bucket, path)
+                .uri(uriBuilder -> uriBuilder
+                        .path("/object/{bucket}/{+path}")
+                        .build(bucket, filePath))
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnSuccess(response -> log.debug("Archivo eliminado: {}", path))
@@ -127,12 +132,10 @@ public class SupabaseStorageClient {
      */
     private Mono<String> uploadFile(String path, byte[] fileBytes) {
         log.debug("Subiendo archivo a: {}", path);
-        
-        String uploadPath = "/object/" + bucket + "/" + path;
-        log.debug("Upload URL: {}", uploadPath);
+        log.debug("Upload URL: /object/{}/{}", bucket, path);
         
         return webClient.post()
-                .uri(uploadPath)
+                .uri("/object/{bucket}/{path}", bucket, path)
                 .contentType(MediaType.IMAGE_JPEG) // Supabase requiere el tipo correcto
                 .header("x-upsert", "true") // Permite sobrescribir si existe
                 .bodyValue(fileBytes)

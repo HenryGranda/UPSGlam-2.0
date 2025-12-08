@@ -130,13 +130,18 @@ public class PostHandler {
 
         log.info("Updating caption for post: {}, userId: {}", postId, userId);
 
-        // Por ahora retornamos método no implementado
-        return ServerResponse.status(501)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of(
-                        "error", "NOT_IMPLEMENTED",
-                        "message", "updateCaption no está implementado en la nueva arquitectura Firestore"
-                ))
+        return request.bodyToMono(Map.class)
+                .flatMap(body -> {
+                    String newCaption = (String) body.get("caption");
+                    if (newCaption == null) {
+                        return ServerResponse.badRequest()
+                                .bodyValue(Map.of("error", "BAD_REQUEST", "message", "Caption es requerido"));
+                    }
+                    return postService.updateCaption(postId, newCaption, userId)
+                            .then(ServerResponse.ok()
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .bodyValue(Map.of("message", "Caption actualizado exitosamente")));
+                })
                 .onErrorResume(this::handleError);
     }
 

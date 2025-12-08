@@ -87,7 +87,7 @@ public class CommentService {
         return commentRepository.findById(postId, commentId)
                 .switchIfEmpty(Mono.error(new RuntimeException("Comentario no encontrado")))
                 .flatMap(comment -> {
-                    if (!comment.getUserId().equals(userId)) {
+                    if (comment.getUserId() == null || !comment.getUserId().equals(userId)) {
                         return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este comentario"));
                     }
                     return commentRepository.delete(postId, commentId)
