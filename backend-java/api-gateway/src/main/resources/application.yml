@@ -171,12 +171,24 @@ spring:
         # ===============================
         # CUDA SERVICE ROUTES (PyCUDA)
         # ===============================
-        - id: cuda-service
+        
+        # List available filters (GET /api/filters)
+        - id: cuda-service-list-filters
           uri: http://localhost:5000
           predicates:
-            - Path=/api/filters/**
+            - Path=/api/filters
+            - Method=GET
           filters:
-            - RewritePath=/api/filters/(?<segment>.*), /$\{segment}
+            - RewritePath=/api/filters, /filters
+        
+        # Apply filter to image (POST /api/filters/{filterName})
+        - id: cuda-service-apply-filter
+          uri: http://localhost:5000
+          predicates:
+            - Path=/api/filters/{filterName}
+            - Method=POST
+          filters:
+            - RewritePath=/api/filters/(?<filterName>.*), /filters/$\{filterName}
         
         # ===============================
         # HEALTH CHECKS

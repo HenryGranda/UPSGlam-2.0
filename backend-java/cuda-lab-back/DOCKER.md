@@ -1,0 +1,225 @@
+# Docker Setup para CUDA Lab Backend
+
+## 📋 Requisitos Previos
+
+### 1. Docker Desktop con WSL2 (Windows)
+- Instalar [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Habilitar WSL2 backend en Docker Desktop settings
+
+### 2. NVIDIA Container Toolkit
+```powershell
+# En WSL2 (Ubuntu), instalar NVIDIA Container Toolkit
+wsl
+
+# Actualizar repositorios
+sudo apt-get update
+
+# Instalar toolkit
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+sudo apt-get update
+sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+```
+
+### 3. Verificar GPU en Docker
+```bash
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+```
+
+---
+
+## 🚀 Build y Run
+
+### Opción A: Docker Compose (Recomendado)
+
+```powershell
+# Build
+docker-compose build
+
+# Run en background
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f
+
+# Detener
+docker-compose down
+```
+
+### Opción B: Docker Manual
+
+```powershell
+# Build image
+docker build -t cuda-lab-back:latest .
+
+# Run container
+docker run -d `
+  --name cuda-lab-backend `
+  --gpus all `
+  -p 8000:8000 `
+  -e CUDA_VISIBLE_DEVICES=0 `
+  cuda-lab-back:latest
+
+# Ver logs
+docker logs -f cuda-lab-backend
+
+# Detener
+docker stop cuda-lab-backend
+docker rm cuda-lab-backend
+```
+
+---
+
+## 🧪 Probar el Servicio
+
+### 1. Health Check
+```powershell
+curl http://localhost:8000/health
+```
+
+### 2. Probar Filtro
+```powershell
+# Crear test request
+$body = @{
+  image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+  filter = @{
+    type = "gaussian"
+    mask_size = 3
+  }
+  cuda_config = @{
+    block_dim = @(16, 16)
+    grid_dim = @(1, 1)
+  }
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri http://localhost:8000/convolve -Method POST -Body $body -ContentType "application/json"
+```
+
+---
+
+## 🔍 Debugging
+
+### Ver logs en tiempo real
+```powershell
+docker-compose logs -f cuda-lab-back
+```
+
+### Entrar al container
+```powershell
+docker exec -it cuda-lab-backend bash
+```
+
+### Verificar GPU dentro del container
+```powershell
+docker exec -it cuda-lab-backend nvidia-smi
+```
+
+### Verificar versión CUDA
+```powershell
+docker exec -it cuda-lab-backend nvcc --version
+```
+
+---
+
+## 🐛 Solución de Problemas
+
+### Error: "could not select device driver"
+- Instalar NVIDIA Container Toolkit
+- Reiniciar Docker Desktop
+- Verificar que WSL2 tenga acceso a GPU: `wsl nvidia-smi`
+
+### Error: "failed to create shim task"
+- Reiniciar Docker Desktop
+- Verificar que Docker Desktop esté usando WSL2 backend
+
+### Error: "CUDA initialization failed"
+- Verificar drivers NVIDIA actualizados en Windows
+- Reiniciar sistema
+- Verificar `nvidia-smi` en WSL2
+
+### Puerto 8000 en uso
+```powershell
+# Cambiar puerto en docker-compose.yml
+ports:
+  - "8080:8000"  # usar puerto 8080 en host
+```
+
+---
+
+## 📊 Monitoreo
+
+### Ver uso de GPU
+```powershell
+# Desde Windows (host)
+nvidia-smi -l 1
+
+# Desde container
+docker exec -it cuda-lab-backend watch -n 1 nvidia-smi
+```
+
+### Ver recursos del container
+```powershell
+docker stats cuda-lab-backend
+```
+
+---
+
+## 🔄 Rebuild Después de Cambios
+
+```powershell
+# Rebuild sin cache
+docker-compose build --no-cache
+
+# Rebuild y restart
+docker-compose up -d --build
+```
+
+---
+
+## 📝 Notas Importantes
+
+1. **Imagen Base**: Usa `nvidia/cuda:12.0.0-runtime-ubuntu22.04`
+   - Si tu GPU usa CUDA 11.x, cambiar a `nvidia/cuda:11.8.0-runtime-ubuntu22.04`
+
+2. **GPU Access**: El flag `--gpus all` da acceso a todas las GPUs
+   - Para GPU específica: `--gpus '"device=0"'`
+
+3. **Performance**: Runtime es más ligero que devel
+   - Si necesitas compilar código CUDA, usar `devel` en vez de `runtime`
+
+4. **Volume Mounts**: Para desarrollo con hot-reload:
+   ```yaml
+   volumes:
+     - ./:/app
+   command: ["python3", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+   ```
+
+---
+
+## 🚢 Producción
+
+Para producción, considera:
+
+1. **Multi-stage build** para reducir tamaño
+2. **Health checks** configurados
+3. **Resource limits** en docker-compose
+4. **Logging** a volume o servicio externo
+5. **Secrets** para API keys (si aplica)
+
+---
+
+## 📦 Limpieza
+
+```powershell
+# Detener y eliminar containers
+docker-compose down
+
+# Eliminar imagen
+docker rmi cuda-lab-back:latest
+
+# Limpiar todo Docker
+docker system prune -a --volumes
+```
