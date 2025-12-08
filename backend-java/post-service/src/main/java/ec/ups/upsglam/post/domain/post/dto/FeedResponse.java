@@ -18,4 +18,7 @@ public class FeedResponse {
 
     private List<PostResponse> posts;
     private Boolean hasMore;
+    private Integer page;
+    private Integer size;
+    private Long totalItems;
 }

@@ -1,9 +1,11 @@
 package ec.ups.upsglam.post.api.handler;
 
 import ec.ups.upsglam.post.domain.media.service.ImageService;
+import ec.ups.upsglam.post.infrastructure.supabase.SupabaseStorageClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Component;
@@ -19,6 +21,7 @@ public class MediaHandler {
 
     private static final Logger log = LoggerFactory.getLogger(MediaHandler.class);
     private final ImageService imageService;
+    private final SupabaseStorageClient storageClient;
 
     /**
      * POST /images/preview

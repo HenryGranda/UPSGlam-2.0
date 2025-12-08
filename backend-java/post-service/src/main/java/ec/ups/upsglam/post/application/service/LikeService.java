@@ -2,28 +2,27 @@ package ec.ups.upsglam.post.application.service;
 
 import ec.ups.upsglam.post.domain.exception.PostNotFoundException;
 import ec.ups.upsglam.post.domain.like.dto.LikeResponse;
-import ec.ups.upsglam.post.domain.like.model.Like;
-import ec.ups.upsglam.post.infrastructure.repository.LikeRepository;
-import ec.ups.upsglam.post.infrastructure.repository.PostRepository;
+import ec.ups.upsglam.post.infrastructure.firestore.document.LikeDocument;
+import ec.ups.upsglam.post.infrastructure.firestore.repository.LikeFirestoreRepository;
+import ec.ups.upsglam.post.infrastructure.firestore.repository.PostFirestoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
 /**
  * Servicio de dominio para Likes
- * Maneja la lógica de negocio relacionada con likes
+ * Usa Firestore para gestionar likes como subcollections
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class LikeService {
 
-    private final LikeRepository likeRepository;
-    private final PostRepository postRepository;
+    private final LikeFirestoreRepository likeRepository;
+    private final PostFirestoreRepository postRepository;
 
     /**
      * Dar like a un post
@@ -34,20 +33,19 @@ public class LikeService {
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> 
                     // Verificar si ya dio like
-                    likeRepository.existsByPostIdAndUserId(postId, userId)
+                    likeRepository.existsByUserIdAndPostId(postId, userId)
                         .flatMap(exists -> {
                             if (exists) {
                                 // Ya dio like, retornar estado actual
                                 return buildLikeResponse(postId, userId, true);
                             }
-                            // Crear nuevo like
-                            Like like = Like.builder()
-                                    .postId(postId)
+                            // Crear nuevo like en Firestore
+                            LikeDocument like = LikeDocument.builder()
                                     .userId(userId)
-                                    .createdAt(LocalDateTime.now())
                                     .build();
                             
-                            return likeRepository.save(like)
+                            return likeRepository.addLike(postId, userId)
+                                    .then(postRepository.updateLikesCount(postId, 1))
                                     .then(buildLikeResponse(postId, userId, true));
                         })
                 )
@@ -62,31 +60,18 @@ public class LikeService {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> 
-                    likeRepository.deleteByPostIdAndUserId(postId, userId)
+                    likeRepository.removeLike(postId, userId)
+                            .then(postRepository.updateLikesCount(postId, -1))
                             .then(buildLikeResponse(postId, userId, false))
                 )
                 .doOnSuccess(response -> log.info("Usuario {} quitó like al post {}", userId, postId));
     }
 
     /**
-     * Obtener usuarios que dieron like a un post
-     */
-    public Flux<LikeResponse> getPostLikes(String postId) {
-        return likeRepository.findByPostId(postId)
-                .map(like -> LikeResponse.builder()
-                        .postId(like.getPostId())
-                        .userId(like.getUserId())
-                        .liked(true)
-                        .likesCount(0) // Se calculará después
-                        .createdAt(like.getCreatedAt())
-                        .build());
-    }
-
-    /**
      * Verificar si un usuario dio like a un post
      */
     public Mono<Boolean> hasUserLikedPost(String postId, String userId) {
-        return likeRepository.existsByPostIdAndUserId(postId, userId);
+        return likeRepository.existsByUserIdAndPostId(postId, userId);
     }
 
     /**

@@ -72,17 +72,16 @@ public class PostHandler {
 
         log.info("Getting posts for user: {}, page: {}, size: {}", targetUserId, page, size);
 
-        return postService.getUserPosts(targetUserId, currentUserId)
-                .collectList()
-                .map(posts -> FeedResponse.builder()
-                        .posts(posts)
+        // Por ahora retornamos feed vacío, este método requiere implementación adicional
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(FeedResponse.builder()
+                        .posts(java.util.Collections.emptyList())
                         .hasMore(false)
+                        .page(page)
+                        .size(size)
+                        .totalItems(0L)
                         .build())
-                .flatMap(feedResponse ->
-                        ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(feedResponse)
-                )
                 .onErrorResume(this::handleError);
     }
 
@@ -131,14 +130,13 @@ public class PostHandler {
 
         log.info("Updating caption for post: {}, userId: {}", postId, userId);
 
-        return request.bodyToMono(Map.class)
-                .map(body -> (String) body.get("description"))
-                .flatMap(description -> postService.updateCaption(postId, userId, description))
-                .flatMap(postResponse ->
-                        ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(postResponse)
-                )
+        // Por ahora retornamos método no implementado
+        return ServerResponse.status(501)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "error", "NOT_IMPLEMENTED",
+                        "message", "updateCaption no está implementado en la nueva arquitectura Firestore"
+                ))
                 .onErrorResume(this::handleError);
     }
 

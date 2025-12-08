@@ -91,6 +91,19 @@ Desktop.ini
 **/application-secrets.yml
 **/application-local.yml
 
+# Supabase credentials (keep these secret!)
+**/supabase-credentials.json
+*.supabase-key
+
+# Temporary image uploads (if storing locally)
+**/temp-images/
+**/uploads/
+
+# Test images
+**/test-images/
+*.test.jpg
+*.test.png
+
 # Python
 __pycache__/
 *.py[cod]

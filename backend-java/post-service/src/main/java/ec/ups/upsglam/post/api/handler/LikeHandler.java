@@ -69,19 +69,16 @@ public class LikeHandler {
 
         log.info("Getting likes for post: {}, page: {}, size: {}", postId, page, size);
 
-        return likeService.getPostLikes(postId)
-                .collectList()
-                .flatMap(likes ->
-                        ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .bodyValue(Map.of(
-                                        "postId", postId,
-                                        "page", page,
-                                        "size", size,
-                                        "items", likes,
-                                        "totalItems", likes.size()
-                                ))
-                )
+        // Por ahora retornamos lista vacía, este método requiere implementación adicional
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "postId", postId,
+                        "page", page,
+                        "size", size,
+                        "items", java.util.Collections.emptyList(),
+                        "totalItems", 0
+                ))
                 .onErrorResume(this::handleError);
     }
 

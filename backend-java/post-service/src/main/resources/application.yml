@@ -35,11 +35,15 @@ supabase:
       posts: posts
       avatars: avatars
 
-# Firebase Configuration (solo para Auth)
+# Firebase Configuration (Firestore para posts/likes/comments)
 firebase:
   credentials:
-    path: ${FIREBASE_CREDENTIALS_PATH:classpath:firebase-credentials.json}
-  project-id: ${FIREBASE_PROJECT_ID:your-project-id}
+    path: classpath:firebase-credentials.json
+  project-id: upsglam-8c88f
+  database-id: db-auth
+  storage:
+    bucket: upsglam-8c88f.appspot.com
+  api-key: ${FIREBASE_API_KEY}
 
 # PyCUDA Service Configuration
 pycuda:

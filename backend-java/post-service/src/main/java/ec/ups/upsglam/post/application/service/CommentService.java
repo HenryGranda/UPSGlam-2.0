@@ -3,29 +3,29 @@ package ec.ups.upsglam.post.application.service;
 import ec.ups.upsglam.post.domain.comment.dto.CommentRequest;
 import ec.ups.upsglam.post.domain.comment.dto.CommentResponse;
 import ec.ups.upsglam.post.domain.comment.dto.CommentsResponse;
-import ec.ups.upsglam.post.domain.comment.model.Comment;
 import ec.ups.upsglam.post.domain.exception.PostNotFoundException;
 import ec.ups.upsglam.post.domain.exception.UnauthorizedException;
-import ec.ups.upsglam.post.infrastructure.repository.CommentRepository;
-import ec.ups.upsglam.post.infrastructure.repository.PostRepository;
+import ec.ups.upsglam.post.infrastructure.firestore.document.CommentDocument;
+import ec.ups.upsglam.post.infrastructure.firestore.repository.CommentFirestoreRepository;
+import ec.ups.upsglam.post.infrastructure.firestore.repository.PostFirestoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * Servicio de dominio para Comments
- * Maneja la lógica de negocio relacionada con comentarios
+ * Usa Firestore para gestionar comentarios como subcollections
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CommentService {
 
-    private final CommentRepository commentRepository;
-    private final PostRepository postRepository;
+    private final CommentFirestoreRepository commentRepository;
+    private final PostFirestoreRepository postRepository;
 
     /**
      * Crear un comentario en un post
@@ -37,28 +37,31 @@ public class CommentService {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> {
-                    Comment comment = Comment.builder()
-                            .id(java.util.UUID.randomUUID().toString())
-                            .postId(postId)
+                    CommentDocument comment = CommentDocument.builder()
                             .userId(userId)
+                            .username(request.getUsername() != null ? request.getUsername() : "unknown")
+                            .userPhotoUrl(request.getUserPhotoUrl())
                             .text(request.getText())
-                            .createdAt(LocalDateTime.now())
                             .build();
 
-                    return commentRepository.save(comment);
+                    return commentRepository.save(postId, comment)
+                            .flatMap(savedComment -> 
+                                postRepository.updateCommentsCount(postId, 1)
+                                    .thenReturn(savedComment)
+                            );
                 })
                 .map(this::toCommentResponse)
                 .doOnSuccess(c -> log.info("Comentario creado: {}", c.getId()));
     }
 
     /**
-     * Obtener comentarios de un post
+     * Obtener comentarios de un post (paginados)
      */
-    public Mono<CommentsResponse> getPostComments(String postId) {
+    public Mono<CommentsResponse> getPostComments(String postId, int page, int size) {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> 
-                    commentRepository.findByPostId(postId)
+                    commentRepository.findByPostId(postId, page, size)
                             .map(this::toCommentResponse)
                             .collectList()
                             .zipWith(commentRepository.countByPostId(postId))
@@ -71,44 +74,42 @@ public class CommentService {
     }
 
     /**
+     * Obtener comentarios de un post (sin paginación)
+     */
+    public Mono<CommentsResponse> getPostComments(String postId) {
+        return getPostComments(postId, 0, 50);
+    }
+
+    /**
      * Eliminar un comentario (solo el autor puede eliminarlo)
      */
-    public Mono<Void> deleteComment(String commentId, String userId) {
-        return commentRepository.findById(commentId)
+    public Mono<Void> deleteComment(String postId, String commentId, String userId) {
+        return commentRepository.findById(postId, commentId)
                 .switchIfEmpty(Mono.error(new RuntimeException("Comentario no encontrado")))
                 .flatMap(comment -> {
                     if (!comment.getUserId().equals(userId)) {
                         return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este comentario"));
                     }
-                    return commentRepository.deleteById(commentId);
+                    return commentRepository.delete(postId, commentId)
+                            .then(postRepository.updateCommentsCount(postId, -1));
                 })
-                .doOnSuccess(v -> log.info("Comentario {} eliminado", commentId));
+                .doOnSuccess(v -> log.info("Comentario {} eliminado del post {}", commentId, postId));
     }
 
     /**
-     * Obtener comentarios de un usuario
+     * Convertir CommentDocument a CommentResponse
      */
-    public Mono<CommentsResponse> getUserComments(String userId) {
-        return commentRepository.findByUserId(userId)
-                .map(this::toCommentResponse)
-                .collectList()
-                .map(comments -> CommentsResponse.builder()
-                        .postId(null) // No es de un post específico
-                        .comments(comments)
-                        .totalCount(comments.size())
-                        .build());
-    }
-
-    /**
-     * Convertir Comment a CommentResponse
-     */
-    private CommentResponse toCommentResponse(Comment comment) {
+    private CommentResponse toCommentResponse(CommentDocument comment) {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .postId(comment.getPostId())
                 .userId(comment.getUserId())
+                .username(comment.getUsername())
+                .userPhotoUrl(comment.getUserPhotoUrl())
                 .text(comment.getText())
-                .createdAt(comment.getCreatedAt())
+                .createdAt(comment.getCreatedAt() != null 
+                    ? comment.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime()
+                    : null)
                 .build();
     }
 }

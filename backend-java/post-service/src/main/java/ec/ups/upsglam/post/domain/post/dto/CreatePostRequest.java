@@ -25,4 +25,6 @@ public class CreatePostRequest {
     
     private String mediaUrl;
     private String mediaType;
+    private String username;
+    private String userPhotoUrl;
 }

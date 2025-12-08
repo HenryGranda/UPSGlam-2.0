@@ -2,24 +2,30 @@ package ec.ups.upsglam.post.domain.media.service;
 
 import ec.ups.upsglam.post.domain.media.dto.TempImageResponse;
 import ec.ups.upsglam.post.domain.media.dto.UploadImageResponse;
+import ec.ups.upsglam.post.infrastructure.supabase.SupabaseStorageClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.ByteArrayOutputStream;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Servicio para procesamiento de imágenes y filtros
- * Sin terceros: solo simula el procesamiento
  */
 @Service
 @RequiredArgsConstructor
 public class ImageService {
 
     private static final Logger log = LoggerFactory.getLogger(ImageService.class);
+    private final SupabaseStorageClient storageClient;
 
     /**
      * Procesa imagen con filtro y la almacena temporalmente
@@ -46,24 +52,36 @@ public class ImageService {
     }
 
     /**
-     * Sube imagen directamente sin filtro
-     * SIN TERCEROS: Solo simula el upload
+     * Sube imagen directamente a Supabase Storage
      */
     public Mono<UploadImageResponse> uploadImage(FilePart imagePart, String userId) {
-        log.info("Uploading image for user: {}", userId);
+        log.info("Uploading image for user: {} - File: {}", userId, imagePart.filename());
 
-        String imageId = UUID.randomUUID().toString();
-        String imageUrl = "https://storage.example.com/images/" + imageId + ".jpg";
+        // Generar nombre único: userId-timestamp-originalName
+        String timestamp = String.valueOf(Instant.now().toEpochMilli());
+        String originalFilename = imagePart.filename();
+        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String fileName = userId + "-" + timestamp + extension;
 
-        // TODO: Cuando se habiliten terceros:
-        // 1. Leer bytes de imagePart
-        // 2. Subir a Supabase Storage
-        // 3. Devolver URL real
-
-        return Mono.just(UploadImageResponse.builder()
-                .imageId(imageId)
-                .imageUrl(imageUrl)
-                .build());
+        // Leer bytes del FilePart
+        return DataBufferUtils.join(imagePart.content())
+                .flatMap(dataBuffer -> {
+                    byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(bytes);
+                    DataBufferUtils.release(dataBuffer);
+                    
+                    log.info("Image bytes read: {} bytes, uploading to Supabase as: {}", bytes.length, fileName);
+                    
+                    // Subir a Supabase Storage en carpeta posts/
+                    return storageClient.uploadPostImage(fileName, bytes);
+                })
+                .map(imageUrl -> {
+                    log.info("Image uploaded successfully: {}", imageUrl);
+                    return UploadImageResponse.builder()
+                            .imageId(fileName)
+                            .imageUrl(imageUrl)
+                            .build();
+                });
     }
 
     /**

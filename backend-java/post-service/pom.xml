@@ -17,7 +17,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>UPSGlam Post Service</name>
-    <description>Microservicio de posts, media, likes y comentarios con Supabase</description>
+    <description>Microservicio de posts, media, likes y comentarios con Firestore + Supabase Storage</description>
 
     <properties>
         <java.version>21</java.version>
