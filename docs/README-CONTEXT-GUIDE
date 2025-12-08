@@ -1,0 +1,246 @@
+context.md — UPSGLAM Project Context for AI Agents
+🧩 1. Overview
+UPSGLAM es una aplicación tipo Instagram académico, donde estudiantes pueden:
+●	Registrarse y autenticarse.
+
+●	Subir fotos con filtros aplicados mediante PyCUDA.
+
+●	Ver un feed de publicaciones.
+
+●	Dar likes y comentar.
+
+●	Editar su perfil y foto de usuario.
+
+La arquitectura es microservicios, con backend en Spring WebFlux, un servicio de GPU en PyCUDA y almacenamiento en Firebase (Auth + Firestore + Storage).
+ El frontend es una app móvil (Flutter u otra tecnología).
+Este documento sirve como contexto global para asistentes de IA, desarrolladores o herramientas automáticas.
+________________________________________
+🧱 2. Arquitectura General
+[ Mobile App ]
+      │
+      ▼
+[ API Gateway ]  ← punto único para todo el frontend
+      │
+      ├──► [ Auth-User Service ]   (registro, login, perfiles)
+      │
+      └──► [ Post Service ]         (feed, posts, likes, comments, media)
+                 │
+                 └──► [ PyCUDA Service ] (GPU filters)
+
+●	Firebase Auth → autenticación de usuarios.
+
+●	Firestore → posts, likes, comments, perfiles.
+
+●	Storage → imágenes (avatares, temp previews, posts finales).
+
+________________________________________
+🔐 3. AUTH & USER SERVICE (Endpoints)
+POST /auth/register
+Registra usuario en Firebase Auth y crea perfil en Firestore.
+ Retorna: { user, token }.
+POST /auth/login
+Login con email/username/teléfono.
+ Retorna: { user, token }.
+GET /auth/me
+Devuelve info del usuario logueado.
+PATCH /users/me
+Actualiza username, fullName, bio.
+PUT /users/me/avatar
+Sube avatar al Storage → avatars/{uid}.jpg.
+GET /users/{userId}
+Perfil público de un usuario.
+________________________________________
+📸 4. POSTS & FEED SERVICE (Endpoints)
+GET /feed?page=x&size=y
+Retorna un feed paginado con posts:
+{
+  id, userId, username, userPhotoUrl,
+  imageUrl, filter, description,
+  likesCount, commentsCount, likedByMe
+}
+
+________________________________________
+POST /posts
+Tienes dos estrategias:
+🅰️ Estrategia 1 – Multipart (sin preview)
+Envía imagen + filter en multipart y se procesa de una.
+🅱️ Estrategia 2 – Usando preview (recomendada)
+1.	Se llama primero a /images/preview
+
+2.	Luego:
+
+POST /posts
+{
+  "tempImageId": "...",
+  "filter": "...",
+  "description": "..."
+}
+
+El backend mueve temp/ → posts/ en Firebase Storage.
+________________________________________
+GET /posts/{postId}
+Obtiene un post completo.
+DELETE /posts/{postId}
+Elimina un post.
+________________________________________
+❤️ 5. LIKES
+POST /posts/{postId}/likes → like
+DELETE /posts/{postId}/likes → unlike
+Firestore: posts/{postId}/likes/{userId}.
+ Devuelve:
+{ postId, likesCount, likedByMe }
+
+________________________________________
+💬 6. COMMENTS
+GET /posts/{postId}/comments
+Lista comentarios paginados.
+POST /posts/{postId}/comments
+Crea un comentario:
+Firestore: posts/{postId}/comments/{commentId}.
+DELETE /posts/{postId}/comments/{commentId}
+Opcional, borrar comentario propio.
+________________________________________
+🎨 7. IMAGES & PyCUDA PREVIEW
+POST /images/preview
+Se usa para simular la experiencia Instagram:
+1.	App toma foto.
+
+2.	Envía imagen + filtro elegido.
+
+3.	Backend llama al servicio PyCUDA.
+
+4.	Se genera imagen filtrada y se sube a temp/{tempId}.jpg.
+
+Respuesta:
+{
+  "tempImageId": "tmp-xyz",
+  "imageUrl": "https://.../temp/tmp-xyz.jpg"
+}
+
+Luego eso se usa para crear el post definitivo.
+________________________________________
+⚙️ 8. PYCUDA SERVICE (interno)
+POST /filters/{filterName}
+Recibe bytes JPEG → procesa en GPU → devuelve bytes JPEG filtrados.
+Filtros disponibles:
+●	gaussian
+
+●	sharpen
+
+●	edge_detect
+
+●	ups_logo
+
+●	Otros kernels posibles.
+
+Estructura del servicio PyCUDA:
+/api/filters_controller.py
+/core/filter_service.py
+/core/cuda_context.py
+/core/kernels/*.cu
+/utils/image_io.py
+
+________________________________________
+🗂 9. FIRESTORE DATA MODEL
+Collection: users/{uid}
+{
+  email, username, fullName,
+  photoUrl, bio
+}
+
+Collection: posts/{postId}
+{
+  userId, username, userPhotoUrl,
+  imageUrl, filter, description,
+  createdAt,
+  likesCount, commentsCount
+}
+
+Subcollection: posts/{postId}/likes/{userId}
+{ userId, createdAt }
+
+Subcollection: posts/{postId}/comments/{commentId}
+{
+  postId, userId, username,
+  userPhotoUrl,
+  text, createdAt
+}
+
+________________________________________
+🎨 10. FRONTEND FLOW SUMMARY
+App start
+1.	Splash → revisa token local.
+
+2.	Si existe → GET /auth/me.
+
+3.	Si válido → Feed. Si no → Login.
+
+Login / Register → recibe token → guarda → Feed.
+Home / Feed
+●	GET /feed
+
+●	like/unlike
+
+●	abrir comentarios
+
+●	ir a perfil público
+
+Crear post (Instagram style)
+1.	Abrir cámara
+
+2.	Elegir filtro
+
+3.	Tomar foto
+
+4.	/images/preview
+
+5.	Ver imagen filtrada
+
+6.	POST /posts con tempImageId
+
+Perfil
+●	Editar datos → PATCH /users/me
+
+●	Cambiar avatar → PUT /users/me/avatar
+
+●	Ver perfil público → GET /users/{uid}
+
+________________________________________
+🧪 11. MOCK API (para frontend dev sin backend)
+Se provee una guía con:
+●	Respuestas fake para todos los endpoints reales.
+
+●	Modo de trabajo USE_MOCK_API = true.
+
+●	Usuarios y posts dummy.
+
+●	Simulación de likes y comentarios.
+
+Sirve para que el frontend avance sin backend activo.
+________________________________________
+📎 12. Documentos oficiales del proyecto
+●	Backend Guide:
+ https://docs.google.com/document/d/12PI-5XiBxN7zwE-i1jGzYCfvBcPqL0p5PCEQSo1fgoM/edit?usp=sharing
+
+●	Frontend Guide:
+ https://docs.google.com/document/d/1GSNjo0X5tGQvUtgoynjtXQzBTz6BY3P2EjNMW3VeUp0/edit?usp=sharing
+
+●	Firestore Guide:
+ https://docs.google.com/document/d/1EX8HW8SYtyETaM7l6GyuDSKiRtBqsCg9s7W6kRc9eoY/edit?usp=sharing
+
+●	PyCUDA Guide:
+ https://docs.google.com/document/d/1aW2nYDAHIm-XAb6BQqsebeN1xHqokLTSDJe3mZKcWOw/edit?usp=sharing
+
+●	Mock Guide:
+ https://docs.google.com/document/d/1xpFnRWvidqHARWYLQu6pAhZWAhYeisjklV62n8EFYYU/edit?usp=sharing
+
+________________________________________
+🎯 13. Purpose of this Document
+Este context.md permite que:
+●	Un agente de IA entienda rápidamente la arquitectura completa.
+
+●	Un nuevo desarrollador entre al proyecto sin confusión.
+
+●	Cualquier herramienta automática (AI dev tools) tenga el contexto unificado.
+
+

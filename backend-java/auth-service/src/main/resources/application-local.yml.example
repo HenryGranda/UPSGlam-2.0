@@ -1,0 +1,5 @@
+# Configuración de ejemplo (template)
+# Copia este archivo como application-local.yml y rellena con tus valores reales
+
+firebase:
+  api-key: YOUR_FIREBASE_WEB_API_KEY_HERE
