@@ -16,15 +16,39 @@ CUDA_ERROR = None
 _cuda_initialized = False
 
 
-def compile_cuda_kernel_to_ptx(kernel_source, arch="sm_89"):
+def _detect_cuda_arch():
+    """
+    Detectar automáticamente la arquitectura CUDA de la GPU disponible.
+    Returns:
+        str: Arquitectura CUDA (ej: 'sm_75', 'sm_86', 'sm_89')
+    """
+    try:
+        import pycuda.autoinit
+        import pycuda.driver as drv
+        
+        device = drv.Device(0)
+        compute_capability = device.compute_capability()
+        arch = f"sm_{compute_capability[0]}{compute_capability[1]}"
+        return arch
+    except Exception as e:
+        # Fallback a arquitecturas comunes si no se puede detectar
+        print(f"Warning: Could not detect CUDA arch, trying common architectures: {e}")
+        return None
+
+
+def compile_cuda_kernel_to_ptx(kernel_source, arch=None):
     """
     Compilar kernel CUDA usando nvcc directamente (bypass PyCUDA auto-detection)
     Args:
         kernel_source (str): Código fuente del kernel CUDA
-        arch (str): Arquitectura CUDA (sm_89 para RTX 5070 Ti)
+        arch (str): Arquitectura CUDA (None = auto-detect)
     Returns:
         str: Código PTX compilado
     """
+    # Auto-detectar arquitectura si no se especifica
+    if arch is None:
+        arch = _detect_cuda_arch()
+    
     # Crear archivo temporal para el código CUDA
     with tempfile.NamedTemporaryFile(mode='w', suffix='.cu', delete=False) as f:
         f.write(kernel_source)
@@ -32,27 +56,42 @@ def compile_cuda_kernel_to_ptx(kernel_source, arch="sm_89"):
     
     # Compilar a PTX usando nvcc
     ptx_file = cu_file.replace('.cu', '.ptx')
-    cmd = ['nvcc', f'-arch={arch}', '--ptx', cu_file, '-o', ptx_file]
     
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Lista de arquitecturas a intentar (de más nueva a más vieja)
+    architectures = [arch] if arch else ['sm_89', 'sm_86', 'sm_75', 'sm_70', 'sm_61', 'sm_52']
     
-    if result.returncode != 0:
-        # Limpiar archivo temporal en caso de error
-        try:
+    last_error = None
+    for try_arch in architectures:
+        if try_arch is None:
+            continue
+            
+        cmd = ['nvcc', f'-arch={try_arch}', '--ptx', cu_file, '-o', ptx_file]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Compilación exitosa
+            with open(ptx_file, 'r') as f:
+                ptx_code = f.read()
+            
+            # Limpiar archivos temporales
             os.unlink(cu_file)
-        except:
-            pass
-        raise Exception(f"CUDA compilation failed: {result.stderr}")
+            os.unlink(ptx_file)
+            
+            print(f"CUDA kernel compiled successfully for {try_arch}")
+            return ptx_code
+        else:
+            last_error = result.stderr
+            # Continuar con la siguiente arquitectura
     
-    # Leer el PTX generado
-    with open(ptx_file, 'r') as f:
-        ptx_code = f.read()
+    # Si ninguna arquitectura funcionó, limpiar y lanzar error
+    try:
+        os.unlink(cu_file)
+        if os.path.exists(ptx_file):
+            os.unlink(ptx_file)
+    except:
+        pass
     
-    # Limpiar archivos temporales
-    os.unlink(cu_file)
-    os.unlink(ptx_file)
-    
-    return ptx_code
+    raise Exception(f"CUDA compilation failed for all architectures. Last error: {last_error}")
 
 
 # Generic 2D convolution kernel

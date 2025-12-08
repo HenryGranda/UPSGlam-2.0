@@ -18,7 +18,7 @@ payload = {
 }
 
 try:
-    response = requests.post("http://127.0.0.1:8000/convolve", json=payload)
+    response = requests.post("http://127.0.0.1:5000/convolve", json=payload)
     print(f"Status Code: {response.status_code}")
     print(f"Response: {response.json()}")
 except Exception as e:

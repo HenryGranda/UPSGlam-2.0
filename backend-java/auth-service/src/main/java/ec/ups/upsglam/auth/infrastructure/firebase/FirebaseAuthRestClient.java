@@ -40,7 +40,14 @@ public class FirebaseAuthRestClient {
                 .retrieve()
                 .bodyToMono(FirebaseAuthResponse.class)
                 .doOnSuccess(response -> log.info("Usuario autenticado exitosamente: {}", email))
-                .doOnError(error -> log.error("Error autenticando usuario: {}", error.getMessage()));
+                .doOnError(error -> {
+                    log.error("Error autenticando usuario: {}", error.getMessage());
+                    if (error instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+                        org.springframework.web.reactive.function.client.WebClientResponseException webError = 
+                            (org.springframework.web.reactive.function.client.WebClientResponseException) error;
+                        log.error("Response body: {}", webError.getResponseBodyAsString());
+                    }
+                });
     }
 
     @Data

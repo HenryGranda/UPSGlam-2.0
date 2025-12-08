@@ -82,7 +82,31 @@ public class FirebaseConfig {
     @Bean
     public Firestore firestore(FirebaseApp firebaseApp) {
         log.info("Inicializando Firestore con database: {}", databaseId);
-        return FirestoreClient.getFirestore(firebaseApp, databaseId);
+        
+        // Si es el database por defecto, usar getFirestore() sin parámetros
+        if (databaseId == null || databaseId.isEmpty() || databaseId.equals("(default)")) {
+            log.info("Usando database (default) de Firestore");
+            return FirestoreClient.getFirestore(firebaseApp);
+        }
+        
+        // Para databases personalizados, usar FirestoreOptions directamente
+        log.info("Usando database personalizado de Firestore: {}", databaseId);
+        try {
+            Resource resource = resourceLoader.getResource(credentialsPath);
+            InputStream serviceAccount = resource.getInputStream();
+            
+            com.google.cloud.firestore.FirestoreOptions firestoreOptions = 
+                com.google.cloud.firestore.FirestoreOptions.newBuilder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .setProjectId(projectId)
+                    .setDatabaseId(databaseId)
+                    .build();
+            
+            return firestoreOptions.getService();
+        } catch (IOException e) {
+            log.error("Error inicializando Firestore con database personalizado", e);
+            throw new RuntimeException("No se pudo inicializar Firestore: " + e.getMessage());
+        }
     }
 
     @Bean

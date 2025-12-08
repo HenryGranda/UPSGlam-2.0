@@ -79,8 +79,8 @@ def _ensure_box_blur_compiled():
         _initialize_cuda()
         from cuda_kernels import compile_cuda_kernel_to_ptx
         import pycuda.driver as drv
-        # Compile using nvcc directly to avoid auto-detection issues
-        ptx_code = compile_cuda_kernel_to_ptx(BOX_BLUR_CUDA_SRC, arch="sm_89")
+        # Compile using nvcc directly with auto-detection
+        ptx_code = compile_cuda_kernel_to_ptx(BOX_BLUR_CUDA_SRC, arch=None)
         _box_blur_mod = drv.module_from_buffer(ptx_code.encode())
         _box_blur_compiled = True
 
