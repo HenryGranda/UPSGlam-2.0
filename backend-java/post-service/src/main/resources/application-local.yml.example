@@ -1,0 +1,65 @@
+# ========================================
+# ARCHIVO DE EJEMPLO - Configuración Local
+# ========================================
+#
+# INSTRUCCIONES:
+# 1. Copia este archivo como: application-local.yml
+# 2. Reemplaza los valores de ejemplo con tus credenciales reales
+# 3. NUNCA commitees application-local.yml (está en .gitignore)
+#
+# ========================================
+
+# Firebase Configuration
+firebase:
+  # API Key de Firebase (obtener de Firebase Console → Project Settings)
+  api-key: YOUR_FIREBASE_API_KEY_HERE
+  
+  # Nota: firebase-credentials.json debe estar en src/main/resources/
+  # Este archivo también debe estar en .gitignore
+
+# Supabase Storage Configuration
+supabase:
+  # URL del proyecto Supabase (ej: https://xxxxx.supabase.co)
+  url: https://YOUR_PROJECT_ID.supabase.co
+  
+  # Anon/Public Key (Settings → API → anon public)
+  key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.YOUR_ANON_KEY_HERE
+  
+  # Service Role Key (Settings → API → service_role) - ⚠️ MANTENER SECRETO
+  service-role-key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.YOUR_SERVICE_ROLE_KEY_HERE
+  
+  storage:
+    # Nombre del bucket en Supabase Storage
+    bucket: upsglam
+    
+    # Carpetas dentro del bucket
+    folders:
+      posts: posts      # Imágenes finales de posts
+      temp: temp        # Imágenes temporales (preview)
+      avatars: avatars  # Fotos de perfil
+
+# ========================================
+# INFORMACIÓN ADICIONAL
+# ========================================
+#
+# Dónde obtener las credenciales:
+#
+# 1. Firebase:
+#    - Console: https://console.firebase.google.com
+#    - Project Settings → General → Web API Key
+#    - Project Settings → Service Accounts → Generate New Private Key
+#      (guardar como firebase-credentials.json)
+#
+# 2. Supabase:
+#    - Dashboard: https://supabase.com/dashboard
+#    - Project Settings → API
+#    - URL: Project URL
+#    - anon public: Para requests del cliente
+#    - service_role: Para operaciones del servidor (SECRETO)
+#
+# 3. Configuración del bucket:
+#    - Storage → Create bucket "upsglam"
+#    - Hacer el bucket público para URLs públicas
+#    - Crear carpetas: posts/, temp/, avatars/
+#
+# ========================================
