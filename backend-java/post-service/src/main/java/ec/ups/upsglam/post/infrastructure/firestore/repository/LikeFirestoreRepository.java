@@ -30,6 +30,9 @@ public class LikeFirestoreRepository {
      */
     public Mono<LikeDocument> addLike(String postId, String userId) {
         return Mono.fromCallable(() -> {
+            if (userId == null || userId.isEmpty()) {
+                throw new IllegalArgumentException("userId cannot be null or empty");
+            }
             LikeDocument like = LikeDocument.builder()
                     .userId(userId)
                     .createdAt(Instant.now())
@@ -55,6 +58,9 @@ public class LikeFirestoreRepository {
     public Mono<Void> removeLike(String postId, String userId) {
         return Mono.fromRunnable(() -> {
             try {
+                if (userId == null || userId.isEmpty()) {
+                    throw new IllegalArgumentException("userId cannot be null or empty");
+                }
                 DocumentReference likeRef = firestore
                         .collection(POSTS_COLLECTION)
                         .document(postId)

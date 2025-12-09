@@ -160,4 +160,21 @@ public class PostFirestoreRepository {
             }
         });
     }
+
+    /**
+     * Actualiza el caption de un post
+     */
+    public Mono<Void> updateCaption(String postId, String newCaption) {
+        return Mono.fromRunnable(() -> {
+            try {
+                DocumentReference docRef = firestore.collection(COLLECTION_NAME).document(postId);
+                ApiFuture<WriteResult> future = docRef.update("caption", newCaption);
+                future.get();
+                log.debug("Caption actualizado para post {}: {}", postId, newCaption);
+            } catch (Exception e) {
+                log.error("Error actualizando caption en Firestore: {}", postId, e);
+                throw new RuntimeException("Error actualizando caption", e);
+            }
+        });
+    }
 }

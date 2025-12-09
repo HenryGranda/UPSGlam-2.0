@@ -87,7 +87,7 @@ public class PostService {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> {
-                    if (!post.getUserId().equals(userId)) {
+                    if (post.getUserId() == null || !post.getUserId().equals(userId)) {
                         return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este post"));
                     }
                     
@@ -107,6 +107,22 @@ public class PostService {
                 })
                 .doOnSuccess(v -> log.info("Post eliminado: {}", postId))
                 .doOnError(e -> log.error("Error eliminando post: {}", postId, e));
+    }
+
+    /**
+     * Actualiza el caption de un post
+     */
+    public Mono<Void> updateCaption(String postId, String newCaption, String userId) {
+        return postRepository.findById(postId)
+                .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
+                .flatMap(post -> {
+                    if (post.getUserId() == null || !post.getUserId().equals(userId)) {
+                        return Mono.error(new UnauthorizedException("No tienes permiso para editar este post"));
+                    }
+                    return postRepository.updateCaption(postId, newCaption);
+                })
+                .doOnSuccess(v -> log.info("Caption actualizado para post: {}", postId))
+                .doOnError(e -> log.error("Error actualizando caption: {}", postId, e));
     }
 
     /**
