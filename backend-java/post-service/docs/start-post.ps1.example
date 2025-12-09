@@ -1,0 +1,34 @@
+# =========================================
+# Post Service - Startup Script
+# =========================================
+# Script para iniciar el post-service con las variables de entorno necesarias
+#
+# ANTES DE USAR:
+# 1. Copia este archivo como start-post.ps1
+# 2. Reemplaza los valores PLACEHOLDER con tus credenciales reales
+# 3. NUNCA commitees start-post.ps1 con credenciales reales
+# =========================================
+
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "INICIANDO POST SERVICE" -ForegroundColor Cyan
+Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Variables de entorno para Supabase
+# IMPORTANTE: Reemplaza estos valores con tus credenciales reales de Supabase
+$env:SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY_HERE"
+$env:SUPABASE_SERVICE_ROLE_KEY = "YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE"
+
+Write-Host "[INFO] Variables de entorno configuradas:" -ForegroundColor Yellow
+Write-Host "   SUPABASE_KEY: *****$(if($env:SUPABASE_KEY.Length -gt 20){$env:SUPABASE_KEY.Substring($env:SUPABASE_KEY.Length-20)})" -ForegroundColor Gray
+Write-Host "   SUPABASE_SERVICE_ROLE_KEY: *****$(if($env:SUPABASE_SERVICE_ROLE_KEY.Length -gt 20){$env:SUPABASE_SERVICE_ROLE_KEY.Substring($env:SUPABASE_SERVICE_ROLE_KEY.Length-20)})" -ForegroundColor Gray
+Write-Host ""
+
+# Iniciar el servicio con Maven
+Write-Host "[START] Iniciando post-service..." -ForegroundColor Green
+Write-Host "        Puerto: 8081" -ForegroundColor Gray
+Write-Host "        Profile: local" -ForegroundColor Gray
+Write-Host ""
+
+Set-Location -Path ".."
+mvn spring-boot:run -Dspring-boot.run.profiles=local

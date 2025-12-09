@@ -1,4 +1,12 @@
-# Script para iniciar el Auth Service
+# =========================================
+# Auth Service - Startup Script EXAMPLE
+# =========================================
+# INSTRUCCIONES:
+# 1. Copia este archivo como: start-auth.ps1
+# 2. Reemplaza los valores YOUR_*_HERE con tus credenciales reales
+# 3. Obtén las credenciales de: https://console.firebase.google.com/project/YOUR_PROJECT/settings/general
+# 4. NUNCA commitees start-auth.ps1 con credenciales reales
+
 Write-Host "Iniciando Auth Service..." -ForegroundColor Cyan
 
 # Ir al directorio correcto
@@ -12,13 +20,13 @@ Write-Host "Configurando variables de entorno..." -ForegroundColor Yellow
 
 # Firebase API Key (Web API Key de tu proyecto Firebase)
 # IMPORTANTE: Debe ser el "Web API Key" (sin restricciones)
-# Obtenerlo de: https://console.firebase.google.com/project/upsglam-8c88f/settings/general
+# Obtenerlo de: Firebase Console → Project Settings → General → Web API Key
 # NO usar Server Key ni Restricted Key - solo funciona el Web API Key
-$env:FIREBASE_API_KEY = "AIzaSyBYcnFxABxm3eyFpCD-nioQbZV1-NDzA5A"
+$env:FIREBASE_API_KEY = "YOUR_FIREBASE_WEB_API_KEY_HERE"
 
 # Opcional: Otras variables si las necesitas
-$env:FIREBASE_PROJECT_ID = "upsglam-8c88f"
-$env:FIREBASE_STORAGE_BUCKET = "upsglam-8c88f.appspot.com"
+$env:FIREBASE_PROJECT_ID = "YOUR_FIREBASE_PROJECT_ID_HERE"
+$env:FIREBASE_STORAGE_BUCKET = "YOUR_FIREBASE_PROJECT_ID_HERE.appspot.com"
 $env:FIREBASE_DATABASE_ID = "db-auth"
 
 Write-Host "Variables configuradas:" -ForegroundColor Green
@@ -33,11 +41,9 @@ mvn package -DskipTests -q
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Compilacion exitosa" -ForegroundColor Green
     Write-Host "Iniciando servidor en http://localhost:8082..." -ForegroundColor Cyan
-    Write-Host "Presiona Ctrl+C para detener" -ForegroundColor Gray
-    Write-Host ""
     
-    # Iniciar servidor
-    java -jar target\auth-service-1.0.0.jar
+    # Iniciar con perfil local que usa las variables de entorno
+    mvn spring-boot:run -Dspring-boot.run.profiles=local
 } else {
-    Write-Host "Error en compilacion" -ForegroundColor Red
+    Write-Host "Error en la compilacion" -ForegroundColor Red
 }

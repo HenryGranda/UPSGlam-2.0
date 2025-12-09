@@ -2,6 +2,7 @@ package ec.ups.upsglam.post.domain.media.service;
 
 import ec.ups.upsglam.post.domain.media.dto.TempImageResponse;
 import ec.ups.upsglam.post.domain.media.dto.UploadImageResponse;
+import ec.ups.upsglam.post.infrastructure.pycuda.PyCudaClient;
 import ec.ups.upsglam.post.infrastructure.supabase.SupabaseStorageClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -26,29 +27,49 @@ public class ImageService {
 
     private static final Logger log = LoggerFactory.getLogger(ImageService.class);
     private final SupabaseStorageClient storageClient;
+    private final PyCudaClient pyCudaClient;
 
     /**
      * Procesa imagen con filtro y la almacena temporalmente
-     * SIN TERCEROS: Solo simula el proceso
+     * FLUJO:
+     * 1. Lee bytes de la imagen
+     * 2. Llama a PyCUDA service para aplicar filtro
+     * 3. Sube imagen filtrada a Supabase en carpeta temp/
+     * 4. Devuelve URL temporal + tempImageId
      */
     public Mono<TempImageResponse> processAndStoreTemp(FilePart imagePart, String filter, String userId) {
         log.info("Processing image with filter: {} for user: {}", filter, userId);
 
-        // Generar ID temporal
-        String tempImageId = "temp-" + UUID.randomUUID().toString();
-        String tempImageUrl = "https://storage.example.com/temp/" + tempImageId + ".jpg";
+        // Generar ID temporal único
+        String tempImageId = "temp-" + userId + "-" + UUID.randomUUID().toString();
+        String timestamp = String.valueOf(Instant.now().toEpochMilli());
+        String fileName = tempImageId + "-" + timestamp + ".jpg";
 
-        // TODO: Cuando se habiliten terceros:
-        // 1. Leer bytes de imagePart
-        // 2. Llamar a PyCUDA service con filter
-        // 3. Subir imagen filtrada a Supabase Storage en carpeta temp/
-        // 4. Devolver URL real
-
-        return Mono.just(TempImageResponse.builder()
-                .tempImageId(tempImageId)
-                .imageUrl(tempImageUrl)
-                .filter(filter)
-                .build());
+        // 1. Leer bytes de la imagen original
+        return DataBufferUtils.join(imagePart.content())
+                .flatMap(dataBuffer -> {
+                    byte[] originalBytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(originalBytes);
+                    DataBufferUtils.release(dataBuffer);
+                    
+                    log.info("Original image bytes read: {} bytes", originalBytes.length);
+                    
+                    // 2. Aplicar filtro con PyCUDA
+                    return pyCudaClient.applyFilter(originalBytes, filter)
+                            .flatMap(filteredBytes -> {
+                                log.info("Filter applied successfully, uploading to temp storage: {}", fileName);
+                                
+                                // 3. Subir imagen filtrada a Supabase temp/
+                                return storageClient.uploadTempImage(fileName, filteredBytes)
+                                        .map(imageUrl -> TempImageResponse.builder()
+                                                .tempImageId(tempImageId)
+                                                .imageUrl(imageUrl)
+                                                .filter(filter)
+                                                .build());
+                            });
+                })
+                .doOnSuccess(response -> log.info("Temp image created: {} at {}", response.getTempImageId(), response.getImageUrl()))
+                .doOnError(error -> log.error("Error processing image with filter {}: {}", filter, error.getMessage()));
     }
 
     /**
@@ -86,33 +107,50 @@ public class ImageService {
 
     /**
      * Mueve imagen temporal a carpeta definitiva de posts
-     * SIN TERCEROS: Solo simula el movimiento
+     * FLUJO:
+     * 1. Obtiene imagen de temp/{tempImageId}
+     * 2. Mueve/copia a posts/ con nuevo nombre basado en postId
+     * 3. Borra imagen temporal
+     * 4. Devuelve URL final
+     * 
+     * Note: tempImageId es la URL temporal completa de Supabase
      */
-    public Mono<String> moveTempToPost(String tempImageId, String postId) {
-        log.info("Moving temp image {} to post {}", tempImageId, postId);
+    public Mono<String> moveTempToPost(String tempImageUrl, String postId) {
+        log.info("Moving temp image from URL {} to post {}", tempImageUrl, postId);
 
-        String finalImageUrl = "https://storage.example.com/posts/" + postId + ".jpg";
-
-        // TODO: Cuando se habiliten terceros:
-        // 1. Obtener imagen de temp/{tempImageId}
-        // 2. Mover/copiar a posts/{postId}
-        // 3. Borrar imagen temporal
-        // 4. Devolver URL final
-
-        return Mono.just(finalImageUrl);
+        // Extraer nombre de archivo desde la URL
+        // URL ejemplo: https://.../temp/temp-userId-uuid-timestamp.jpg
+        String tempPath = storageClient.extractPathFromUrl(tempImageUrl);
+        if (tempPath == null || !tempPath.startsWith("temp/")) {
+            log.error("Invalid temp image URL: {}", tempImageUrl);
+            return Mono.error(new IllegalArgumentException("Invalid temp image URL"));
+        }
+        
+        // Remover "temp/" prefix para obtener solo el nombre del archivo
+        final String tempFileName = tempPath.substring(5); // "temp/".length() = 5
+        
+        String postFileName = postId + ".jpg";
+        
+        // Supabase tiene método moveTempToPost que hace todo esto
+        return storageClient.moveTempToPost(tempFileName, postFileName)
+                .doOnSuccess(finalUrl -> log.info("Image moved successfully from temp to posts: {}", finalUrl))
+                .doOnError(error -> log.error("Error moving temp image {} to post {}: {}", tempFileName, postId, error.getMessage()));
     }
 
     /**
      * Borra imagen de Storage
-     * SIN TERCEROS: Solo simula el borrado
      */
     public Mono<Void> deleteImage(String imageUrl) {
         log.info("Deleting image: {}", imageUrl);
 
-        // TODO: Cuando se habiliten terceros:
-        // 1. Extraer path de la URL
-        // 2. Borrar de Supabase Storage
-
-        return Mono.empty();
+        String path = storageClient.extractPathFromUrl(imageUrl);
+        if (path == null || path.isEmpty()) {
+            log.warn("Could not extract path from URL: {}", imageUrl);
+            return Mono.empty();
+        }
+        
+        return storageClient.deleteFile(path)
+                .doOnSuccess(v -> log.info("Image deleted successfully: {}", path))
+                .doOnError(error -> log.error("Error deleting image {}: {}", path, error.getMessage()));
     }
 }

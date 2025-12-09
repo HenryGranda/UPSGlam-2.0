@@ -70,8 +70,26 @@ try {
         -Body $loginBody
 
     $global:TOKEN = $loginResponse.token.idToken
+    
+    # Extraer User ID del token JWT (decodificar la parte del payload)
+    $tokenParts = $global:TOKEN.Split('.')
+    if ($tokenParts.Length -ge 2) {
+        $payload = $tokenParts[1]
+        # Agregar padding si es necesario
+        $padding = $payload.Length % 4
+        if ($padding -gt 0) {
+            $payload += '=' * (4 - $padding)
+        }
+        $decodedPayload = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($payload))
+        $payloadJson = $decodedPayload | ConvertFrom-Json
+        $global:USER_ID = $payloadJson.user_id
+    } else {
+        $global:USER_ID = "testpost-user"  # Fallback
+    }
+    
     Write-Host "[OK] TOKEN OBTENIDO" -ForegroundColor Green
     Write-Host "   Usuario: $($loginResponse.user.username)" -ForegroundColor Cyan
+    Write-Host "   User ID: $global:USER_ID" -ForegroundColor Cyan
     Write-Host "   Token: $($global:TOKEN.Substring(0, 30))..." -ForegroundColor DarkGray
     Write-Host ""
 } catch {
@@ -148,10 +166,11 @@ Write-Host "=========================================" -ForegroundColor Blue
 
 $headers = @{
     Authorization = "Bearer $global:TOKEN"
-    "X-User-Id" = "testpost-user"
+    "X-User-Id" = $global:USER_ID
 }
 
 Write-Host "[SEND] Subiendo imagen..." -ForegroundColor Yellow
+Write-Host "[DEBUG] User ID: $global:USER_ID" -ForegroundColor DarkGray
 
 try {
     # PowerShell 5.1 compatible multipart upload
@@ -175,6 +194,7 @@ try {
         -Method POST `
         -Headers @{
             Authorization = "Bearer $global:TOKEN"
+            "X-User-Id" = $global:USER_ID
             "Content-Type" = "multipart/form-data; boundary=$boundary"
         } `
         -Body $body
@@ -195,6 +215,7 @@ try {
 
 Start-Sleep -Seconds 1
 
+
 # ==========================================
 # TEST 4: CREAR POST
 # ==========================================
@@ -203,9 +224,10 @@ Write-Host "TEST 4: POST /posts" -ForegroundColor Blue
 Write-Host "=========================================" -ForegroundColor Blue
 
 $postBody = @{
-    imageUrl = $global:IMAGE_URL
+    mediaUrl = $global:IMAGE_URL
     caption = "Post de prueba desde PowerShell! Test automatizado"
     filter = $null
+    username = "testpost"
 } | ConvertTo-Json
 
 Write-Host "[SEND] Creando post..." -ForegroundColor Yellow

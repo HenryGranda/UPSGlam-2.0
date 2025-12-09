@@ -95,6 +95,10 @@ Desktop.ini
 **/supabase-credentials.json
 *.supabase-key
 
+# Startup scripts with credentials
+**/start-*.ps1
+!**/start-*.ps1.example
+
 # Temporary image uploads (if storing locally)
 **/temp-images/
 **/uploads/

@@ -37,15 +37,25 @@ public class MediaHandler {
                 .flatMap(multipartData -> {
                     // Extraer la imagen
                     FilePart imagePart = (FilePart) multipartData.getFirst("image");
-                    String filter = multipartData.getFirst("filter").toString();
-
-                    if (imagePart == null) {
-                        return Mono.error(new IllegalArgumentException("Image file is required"));
+                    
+                    // Extraer el filtro (FormFieldPart, no FilePart)
+                    var filterPart = multipartData.getFirst("filter");
+                    if (filterPart == null || imagePart == null) {
+                        return Mono.error(new IllegalArgumentException("Image and filter are required"));
                     }
-
-                    log.info("Applying filter: {} to image", filter);
-
-                    return imageService.processAndStoreTemp(imagePart, filter, userId);
+                    
+                    // Leer el valor del filtro desde el FormFieldPart
+                    return DataBufferUtils.join(filterPart.content())
+                            .map(dataBuffer -> {
+                                byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                                dataBuffer.read(bytes);
+                                DataBufferUtils.release(dataBuffer);
+                                return new String(bytes);
+                            })
+                            .flatMap(filter -> {
+                                log.info("Applying filter: {} to image", filter);
+                                return imageService.processAndStoreTemp(imagePart, filter, userId);
+                            });
                 })
                 .flatMap(tempImageResponse ->
                         ServerResponse.ok()

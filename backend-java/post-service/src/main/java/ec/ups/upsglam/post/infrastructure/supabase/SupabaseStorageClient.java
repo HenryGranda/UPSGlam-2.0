@@ -93,13 +93,12 @@ public class SupabaseStorageClient {
     public Mono<Void> deleteFile(String path) {
         log.debug("Eliminando archivo: {}", path);
         
-        // Extraer bucket y path: path puede venir como "posts/file.jpg" o solo "file.jpg"
-        String filePath = path.contains("/") ? path : "posts/" + path;
+        // Manual URL construction to avoid encoding slashes
+        String deleteUrl = "/object/" + bucket + "/" + path;
+        log.debug("Delete URL: {}", deleteUrl);
         
         return webClient.delete()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/object/{bucket}/{+path}")
-                        .build(bucket, filePath))
+                .uri(deleteUrl)
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnSuccess(response -> log.debug("Archivo eliminado: {}", path))
@@ -132,14 +131,25 @@ public class SupabaseStorageClient {
      */
     private Mono<String> uploadFile(String path, byte[] fileBytes) {
         log.debug("Subiendo archivo a: {}", path);
-        log.debug("Upload URL: /object/{}/{}", bucket, path);
+        
+        // Construir URL manualmente: /object/{bucket}/{path}
+        String uploadUrl = "/object/" + bucket + "/" + path;
+        log.debug("Upload URL: {}", uploadUrl);
         
         return webClient.post()
-                .uri("/object/{bucket}/{path}", bucket, path)
-                .contentType(MediaType.IMAGE_JPEG) // Supabase requiere el tipo correcto
-                .header("x-upsert", "true") // Permite sobrescribir si existe
+                .uri(uploadUrl)
+                .contentType(MediaType.IMAGE_JPEG)
+                .header("x-upsert", "true")
+                .header("cache-control", "3600")
                 .bodyValue(fileBytes)
                 .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), clientResponse -> {
+                    return clientResponse.bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error("Supabase error response: Status={}, Body={}", clientResponse.statusCode(), errorBody);
+                                return Mono.error(new RuntimeException("Supabase upload failed: " + errorBody));
+                            });
+                })
                 .bodyToMono(String.class)
                 .doOnSuccess(response -> log.debug("Archivo subido exitosamente: {} - Response: {}", path, response))
                 .doOnError(error -> log.error("Error subiendo archivo: {} - Error: {}", path, error.getMessage()));
@@ -149,8 +159,12 @@ public class SupabaseStorageClient {
      * Obtiene los bytes de un archivo
      */
     private Mono<byte[]> getFileBytes(String path) {
+        // Manual URL construction to avoid encoding slashes
+        String getUrl = "/object/" + bucket + "/" + path;
+        log.debug("Get file URL: {}", getUrl);
+        
         return webClient.get()
-                .uri("/object/{bucket}/{path}", bucket, path)
+                .uri(getUrl)
                 .retrieve()
                 .bodyToMono(byte[].class);
     }
