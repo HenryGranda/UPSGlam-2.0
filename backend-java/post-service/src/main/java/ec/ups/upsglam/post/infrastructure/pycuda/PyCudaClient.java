@@ -52,32 +52,48 @@ public class PyCudaClient {
      */
     public Mono<byte[]> applyFilter(byte[] imageBytes, String filterName) {
         log.info("Applying filter '{}' via PyCUDA service (image size: {} bytes)", filterName, imageBytes.length);
+        log.info("WebClient base URL: {}", pyCudaWebClient.toString());
         
-        return pyCudaWebClient.post()
-            .uri("/filters/{filterName}", filterName)
-            .contentType(MediaType.IMAGE_JPEG)
-            .accept(MediaType.IMAGE_JPEG)
-            .bodyValue(imageBytes)
-            .retrieve()
-            .onStatus(
-                status -> status.value() == 400,
-                response -> response.bodyToMono(String.class)
-                    .flatMap(body -> {
-                        log.error("PyCUDA filter validation error: {}", body);
-                        return Mono.error(new PyCudaFilterException("Invalid filter or image: " + body));
-                    })
-            )
-            .onStatus(
-                status -> status.value() == 503,
-                response -> response.bodyToMono(String.class)
-                    .flatMap(body -> {
-                        log.error("PyCUDA GPU error: {}", body);
-                        return Mono.error(new PyCudaGpuException("GPU processing error: " + body));
-                    })
-            )
-            .onStatus(
-                status -> status.is5xxServerError(),
-                response -> response.bodyToMono(String.class)
+        try {
+            log.info("Starting URI construction for filter: {}", filterName);
+            return pyCudaWebClient.post()
+                .uri(uriBuilder -> {
+                    log.info("Inside URI builder - filterName: {}", filterName);
+                    log.info("UriBuilder class: {}", uriBuilder.getClass().getName());
+                    log.info("Building path: /filters/{}", filterName);
+                    
+                    try {
+                        var uri = uriBuilder.path("/filters/{filterName}").build(filterName);
+                        log.info("Built URI successfully: {}", uri);
+                        return uri;
+                    } catch (Exception e) {
+                        log.error("ERROR building URI inside builder: {}", e.getMessage(), e);
+                        throw e;
+                    }
+                })
+                .contentType(MediaType.IMAGE_JPEG)
+                .accept(MediaType.IMAGE_JPEG)
+                .bodyValue(imageBytes)
+                .retrieve()
+                .onStatus(
+                    status -> status.value() == 400,
+                    response -> response.bodyToMono(String.class)
+                        .flatMap(body -> {
+                            log.error("PyCUDA filter validation error: {}", body);
+                            return Mono.error(new PyCudaFilterException("Invalid filter or image: " + body));
+                        })
+                )
+                .onStatus(
+                    status -> status.value() == 503,
+                    response -> response.bodyToMono(String.class)
+                        .flatMap(body -> {
+                            log.error("PyCUDA GPU error: {}", body);
+                            return Mono.error(new PyCudaGpuException("GPU processing error: " + body));
+                        })
+                )
+                .onStatus(
+                    status -> status.is5xxServerError(),
+                    response -> response.bodyToMono(String.class)
                     .flatMap(body -> {
                         log.error("PyCUDA service error: {}", body);
                         return Mono.error(new PyCudaServiceException("PyCUDA service error: " + body));
@@ -97,6 +113,10 @@ public class PyCudaClient {
                         ex.getRawStatusCode(), ex.getResponseBodyAsString())
                 )
             );
+        } catch (Exception e) {
+            log.error("Exception building request to PyCUDA: {}", e.getMessage(), e);
+            return Mono.error(new PyCudaServiceException("Failed to build request: " + e.getMessage(), e));
+        }
     }
     
     /**
@@ -159,6 +179,10 @@ public class PyCudaClient {
     public static class PyCudaServiceException extends RuntimeException {
         public PyCudaServiceException(String message) {
             super(message);
+        }
+        
+        public PyCudaServiceException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

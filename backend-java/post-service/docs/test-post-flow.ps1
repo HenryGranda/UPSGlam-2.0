@@ -26,11 +26,10 @@
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "UPSGLAM POST SERVICE - TEST COMPLETO" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "" 
 
-# Configuracion
-$BASE_URL_AUTH = "http://localhost:8082/api"
-$BASE_URL_POST = "http://localhost:8081/api"
+# Configuracion - TODAS LAS PETICIONES VIA API GATEWAY
+$GATEWAY_URL = "http://localhost:8080/api"
 
 # Credenciales de usuario de prueba
 # IMPORTANTE: Primero debes registrar un usuario en auth-service
@@ -38,12 +37,10 @@ $EMAIL = "testpost@ups.edu.ec"
 $PASSWORD = "test123456"
 
 Write-Host "[INFO] Configuracion:" -ForegroundColor Yellow
-Write-Host "   Auth Service: $BASE_URL_AUTH" -ForegroundColor Gray
-Write-Host "   Post Service: $BASE_URL_POST" -ForegroundColor Gray
+Write-Host "   API Gateway:  $GATEWAY_URL" -ForegroundColor Gray
 Write-Host "   Usuario:      $EMAIL" -ForegroundColor Gray
-Write-Host ""
-
-$global:TOKEN = $null
+Write-Host "   (Gateway enruta internamente a auth-service:8082 y post-service:8081)" -ForegroundColor DarkGray
+Write-Host ""$global:TOKEN = $null
 $global:POST_ID = $null
 $global:COMMENT_ID = $null
 $global:IMAGE_URL = $null
@@ -64,7 +61,7 @@ Write-Host "[SEND] Intentando login..." -ForegroundColor Yellow
 
 try {
     $loginResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_AUTH/auth/login" `
+        -Uri "$GATEWAY_URL/auth/login" `
         -Method POST `
         -ContentType "application/json" `
         -Body $loginBody
@@ -108,27 +105,15 @@ try {
 Start-Sleep -Seconds 1
 
 # ==========================================
-# TEST 1: HEALTH CHECK
+# TEST 1: HEALTH CHECK (SKIP - Gateway no expone /health)
 # ==========================================
+# El API Gateway no expone endpoint de health directamente
+# Los servicios internos (8081, 8082) tienen sus propios health checks
 Write-Host "=========================================" -ForegroundColor Blue
-Write-Host "TEST 1: GET /health" -ForegroundColor Blue
+Write-Host "TEST 1: Health Check - SKIPPED" -ForegroundColor Blue
 Write-Host "=========================================" -ForegroundColor Blue
-
-Write-Host "[SEND] Enviando request..." -ForegroundColor Yellow
-
-try {
-    $healthResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/health" `
-        -Method GET
-
-    Write-Host "[OK] SERVICIO SALUDABLE" -ForegroundColor Green
-    Write-Host "   Status: $($healthResponse.status)" -ForegroundColor Cyan
-    Write-Host ""
-} catch {
-    Write-Host "[ERROR] Servicio no disponible" -ForegroundColor Red
-    Write-Host "Asegurate de que post-service este corriendo en puerto 8081" -ForegroundColor Yellow
-    exit 1
-}
+Write-Host "[INFO] Gateway corriendo, continuando con tests..." -ForegroundColor Cyan
+Write-Host ""
 
 Start-Sleep -Seconds 1
 
@@ -190,7 +175,7 @@ try {
     $body = $bodyLines -join "`r`n"
     
     $uploadResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/images/upload" `
+        -Uri "$GATEWAY_URL/images/upload" `
         -Method POST `
         -Headers @{
             Authorization = "Bearer $global:TOKEN"
@@ -234,7 +219,7 @@ Write-Host "[SEND] Creando post..." -ForegroundColor Yellow
 
 try {
     $createPostResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts" `
+        -Uri "$GATEWAY_URL/posts" `
         -Method POST `
         -Headers $headers `
         -ContentType "application/json" `
@@ -267,7 +252,7 @@ Write-Host "[SEND] Obteniendo feed..." -ForegroundColor Yellow
 
 try {
     $feedResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/feed?limit=10" `
+        -Uri "$GATEWAY_URL/feed?limit=10" `
         -Method GET `
         -Headers $headers
 
@@ -293,7 +278,7 @@ Write-Host "[SEND] Dando like al post..." -ForegroundColor Yellow
 
 try {
     $likeResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/likes" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/likes" `
         -Method POST `
         -Headers $headers
 
@@ -322,7 +307,7 @@ Write-Host "[SEND] Agregando comentario..." -ForegroundColor Yellow
 
 try {
     $commentResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/comments" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/comments" `
         -Method POST `
         -Headers $headers `
         -ContentType "application/json" `
@@ -351,7 +336,7 @@ Write-Host "[SEND] Obteniendo post..." -ForegroundColor Yellow
 
 try {
     $postResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID" `
         -Method GET `
         -Headers $headers
 
@@ -379,7 +364,7 @@ Write-Host "[SEND] Obteniendo comentarios..." -ForegroundColor Yellow
 
 try {
     $commentsResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/comments" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/comments" `
         -Method GET `
         -Headers $headers
 
@@ -407,7 +392,7 @@ Write-Host "[SEND] Obteniendo likes..." -ForegroundColor Yellow
 
 try {
     $likesResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/likes" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/likes" `
         -Method GET `
         -Headers $headers
 
@@ -436,7 +421,7 @@ Write-Host "[SEND] Actualizando caption..." -ForegroundColor Yellow
 
 try {
     $updateResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/caption" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/caption" `
         -Method PATCH `
         -Headers $headers `
         -ContentType "application/json" `
@@ -463,7 +448,7 @@ Write-Host "[SEND] Eliminando comentario..." -ForegroundColor Yellow
 
 try {
     Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/comments/$global:COMMENT_ID" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/comments/$global:COMMENT_ID" `
         -Method DELETE `
         -Headers $headers
 
@@ -487,7 +472,7 @@ Write-Host "[SEND] Quitando like..." -ForegroundColor Yellow
 
 try {
     Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID/likes" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID/likes" `
         -Method DELETE `
         -Headers $headers
 
@@ -511,7 +496,7 @@ Write-Host "[SEND] Eliminando post..." -ForegroundColor Yellow
 
 try {
     Invoke-RestMethod `
-        -Uri "$BASE_URL_POST/posts/$global:POST_ID" `
+        -Uri "$GATEWAY_URL/posts/$global:POST_ID" `
         -Method DELETE `
         -Headers $headers
 

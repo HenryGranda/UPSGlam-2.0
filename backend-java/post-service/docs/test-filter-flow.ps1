@@ -16,11 +16,10 @@
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "UPSGLAM - TEST FLUJO CON FILTRO PYCUDA" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "" 
 
-# Configuracion - TODO VIA API GATEWAY
-$BASE_URL = "http://localhost:8080/api"
-$BASE_URL_CUDA = "http://localhost:5000"
+# Configuracion - TODAS LAS PETICIONES VIA API GATEWAY
+$GATEWAY_URL = "http://localhost:8080/api"
 
 # Credenciales de usuario de prueba
 $EMAIL = "testpost@ups.edu.ec"
@@ -30,13 +29,11 @@ $PASSWORD = "test123456"
 $IMAGE_PATH = "C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\husky.jpg"
 
 Write-Host "[INFO] Configuracion:" -ForegroundColor Yellow
-Write-Host "   API Gateway: $BASE_URL" -ForegroundColor Gray
-Write-Host "   CUDA Service: $BASE_URL_CUDA (directo, interno)" -ForegroundColor Gray
+Write-Host "   API Gateway:  $GATEWAY_URL" -ForegroundColor Gray
 Write-Host "   Usuario:      $EMAIL" -ForegroundColor Gray
 Write-Host "   Imagen:       $IMAGE_PATH" -ForegroundColor Gray
-Write-Host ""
-
-$global:TOKEN = $null
+Write-Host "   (Gateway enruta internamente a auth-service:8082, post-service:8081, pycuda:5000)" -ForegroundColor DarkGray
+Write-Host ""$global:TOKEN = $null
 $global:USER_ID = $null
 $global:TEMP_IMAGE_ID = $null
 $global:TEMP_IMAGE_URL = $null
@@ -58,7 +55,7 @@ Write-Host "[SEND] Intentando login..." -ForegroundColor Yellow
 
 try {
     $loginResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL/auth/login" `
+        -Uri "$GATEWAY_URL/auth/login" `
         -Method POST `
         -ContentType "application/json" `
         -Body $loginBody
@@ -102,7 +99,7 @@ Write-Host "=========================================" -ForegroundColor Blue
 # Verificar PyCUDA
 Write-Host "[CHECK] Verificando PyCUDA Service..." -ForegroundColor Yellow
 try {
-    $cudaHealth = Invoke-RestMethod -Uri "$BASE_URL_CUDA/health" -Method GET
+    $cudaHealth = Invoke-RestMethod -Uri "http://localhost:5000/health" -Method GET
     Write-Host "[OK] PyCUDA Service UP" -ForegroundColor Green
     Write-Host "   Status: $($cudaHealth.status)" -ForegroundColor Cyan
 } catch {
@@ -111,14 +108,14 @@ try {
     exit 1
 }
 
-# Verificar Post Service
-Write-Host "[CHECK] Verificando Post Service..." -ForegroundColor Yellow
+# Verificar API Gateway
+Write-Host "[CHECK] Verificando API Gateway..." -ForegroundColor Yellow
 try {
-    $postHealth = Invoke-RestMethod -Uri "http://localhost:8081/api/health" -Method GET
-    Write-Host "[OK] Post Service UP" -ForegroundColor Green
-    Write-Host "   Status: $($postHealth.status)" -ForegroundColor Cyan
+    $gatewayHealth = Invoke-RestMethod -Uri "http://localhost:8080/actuator/health" -Method GET
+    Write-Host "[OK] API Gateway UP" -ForegroundColor Green
+    Write-Host "   Status: $($gatewayHealth.status)" -ForegroundColor Cyan
 } catch {
-    Write-Host "[ERROR] Post Service no disponible en puerto 8081" -ForegroundColor Red
+    Write-Host "[ERROR] API Gateway no disponible en puerto 8080" -ForegroundColor Red
     exit 1
 }
 
@@ -176,7 +173,7 @@ try {
     $body = $bodyLines -join "`r`n"
     
     $previewResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL/images/preview" `
+        -Uri "$GATEWAY_URL/images/preview" `
         -Method POST `
         -Headers @{
             Authorization = "Bearer $global:TOKEN"
@@ -228,7 +225,7 @@ $postBody = @{
 
 try {
     $postResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL/posts" `
+        -Uri "$GATEWAY_URL/posts" `
         -Method POST `
         -Headers @{
             Authorization = "Bearer $global:TOKEN"
@@ -267,7 +264,7 @@ Write-Host "[SEND] Obteniendo feed..." -ForegroundColor Yellow
 
 try {
     $feedResponse = Invoke-RestMethod `
-        -Uri "$BASE_URL/feed?limit=10" `
+        -Uri "$GATEWAY_URL/feed?limit=10" `
         -Method GET `
         -Headers @{
             Authorization = "Bearer $global:TOKEN"

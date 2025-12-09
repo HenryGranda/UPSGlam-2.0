@@ -1,7 +1,7 @@
 package ec.ups.upsglam.post.config;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -27,27 +27,15 @@ import java.time.Duration;
  * 
  * @see ec.ups.upsglam.post.infrastructure.pycuda.PyCudaClient
  */
+@Slf4j
 @Configuration
-@ConfigurationProperties(prefix = "pycuda.service")
-@Data
 public class PyCudaClientConfig {
 
-    /**
-     * Base URL del PyCUDA service.
-     * Default: http://localhost:5000
-     */
-    private String url = "http://localhost:5000";
+    @Value("${pycuda.service.url:http://localhost:5000}")
+    private String urlFromConfig;
     
-    /**
-     * Timeout para operaciones de filtrado (en milisegundos).
-     * Default: 30000ms (30 segundos)
-     * 
-     * GPU processing is fast (usually <1s), but we allow generous timeout for:
-     * - First request (CUDA initialization)
-     * - Large images (4K+)
-     * - Complex filters (LoG with large masks)
-     */
-    private long timeout = 30000L;
+    @Value("${pycuda.service.timeout:30000}")
+    private long timeout;
 
     /**
      * WebClient configurado para PyCUDA Service.
@@ -61,11 +49,21 @@ public class PyCudaClientConfig {
      */
     @Bean(name = "pyCudaWebClient")
     public WebClient pyCudaWebClient() {
+        // Limpiar URL de cualquier carácter invisible
+        String cleanUrl = urlFromConfig != null ? urlFromConfig.trim() : "http://localhost:5000";
+        
+        log.info("=".repeat(60));
+        log.info("PyCUDA WebClient Configuration");
+        log.info("URL: '{}'", cleanUrl);
+        log.info("URL Length: {}", cleanUrl.length());
+        log.info("Timeout: {}ms", timeout);
+        log.info("=".repeat(60));
+        
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(Duration.ofMillis(timeout));
 
         return WebClient.builder()
-                .baseUrl(url)
+                .baseUrl(cleanUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader("Accept", MediaType.IMAGE_JPEG_VALUE)
                 .build();
