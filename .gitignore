@@ -137,3 +137,7 @@ build/
 # Coverage reports
 coverage/
 *.lcov
+
+flutter/
+**/GeneratedPluginRegistrant.*
+
