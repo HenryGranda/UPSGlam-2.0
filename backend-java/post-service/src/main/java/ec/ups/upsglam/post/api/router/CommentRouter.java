@@ -16,9 +16,19 @@ public class CommentRouter {
     @Bean
     public RouterFunction<ServerResponse> commentsRoutes(CommentHandler handler) {
         return route(GET("/posts/{postId}/comments"), handler::getPostComments)
-            .andRoute(POST("/posts/{postId}/comments")
-                .and(contentType(MediaType.APPLICATION_JSON)), handler::createComment)
-            .andRoute(DELETE("/posts/{postId}/comments/{commentId}"), handler::deleteComment)
+            .andRoute(
+                POST("/posts/{postId}/comments")
+                    .and(contentType(MediaType.APPLICATION_JSON)),
+                handler::createComment
+            )
+            .andRoute(
+                PUT("/posts/{postId}/comments/{commentId}"),
+                handler::updateComment
+            )
+            .andRoute(
+                DELETE("/posts/{postId}/comments/{commentId}"),
+                handler::deleteComment
+            )
             .andRoute(GET("/users/{userId}/comments"), handler::getUserComments);
     }
 }

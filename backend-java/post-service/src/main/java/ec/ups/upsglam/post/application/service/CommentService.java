@@ -83,17 +83,58 @@ public class CommentService {
     /**
      * Eliminar un comentario (solo el autor puede eliminarlo)
      */
-    public Mono<Void> deleteComment(String postId, String commentId, String userId) {
+    public Mono<Void> deleteComment(String postId, String commentId, String userId, String username) {
         return commentRepository.findById(postId, commentId)
-                .switchIfEmpty(Mono.error(new RuntimeException("Comentario no encontrado")))
-                .flatMap(comment -> {
-                    if (comment.getUserId() == null || !comment.getUserId().equals(userId)) {
-                        return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este comentario"));
-                    }
-                    return commentRepository.delete(postId, commentId)
-                            .then(postRepository.updateCommentsCount(postId, -1));
-                })
-                .doOnSuccess(v -> log.info("Comentario {} eliminado del post {}", commentId, postId));
+            .switchIfEmpty(Mono.error(new RuntimeException("Comentario no encontrado")))
+            .flatMap(comment -> {
+                boolean isOwner = false;
+
+                if (comment.getUserId() != null && userId != null &&
+                    comment.getUserId().equals(userId)) {
+                    isOwner = true;
+                }
+
+                if (!isOwner &&
+                    comment.getUsername() != null && username != null &&
+                    comment.getUsername().equals(username)) {
+                    isOwner = true;
+                }
+
+                if (!isOwner) {
+                    return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este comentario"));
+                }
+
+                return commentRepository.delete(postId, commentId)
+                        .then(postRepository.updateCommentsCount(postId, -1));
+            })
+            .doOnSuccess(v -> log.info("Comentario {} eliminado del post {}", commentId, postId));
+    }
+
+    public Mono<CommentResponse> updateComment(
+            String postId,
+            String commentId,
+            CommentRequest request,
+            String userId
+    ) {
+        return commentRepository.findById(postId, commentId)
+            .switchIfEmpty(Mono.error(new RuntimeException("Comentario no encontrado")))
+            .flatMap(comment -> {
+                if (comment.getUserId() == null || !comment.getUserId().equals(userId)) {
+                    return Mono.error(new UnauthorizedException("No tienes permiso para editar este comentario"));
+                }
+
+                comment.setText(request.getText());
+                // opcionalmente actualizar username / photo si las mandas
+                if (request.getUsername() != null) {
+                    comment.setUsername(request.getUsername());
+                }
+                if (request.getUserPhotoUrl() != null) {
+                    comment.setUserPhotoUrl(request.getUserPhotoUrl());
+                }
+
+                return commentRepository.save(postId, comment);
+            })
+            .map(this::toCommentResponse);
     }
 
     /**

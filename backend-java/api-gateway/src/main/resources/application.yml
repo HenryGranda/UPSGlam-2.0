@@ -168,6 +168,14 @@ spring:
           filters:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
+        - id: post-service-update-comment    
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/posts/{postId}/comments/{commentId}
+            - Method=PUT
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
         # ===============================
         # CUDA SERVICE ROUTES (PyCUDA)
         # ===============================

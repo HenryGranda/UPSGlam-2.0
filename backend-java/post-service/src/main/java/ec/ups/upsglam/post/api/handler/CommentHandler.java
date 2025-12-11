@@ -71,11 +71,30 @@ public class CommentHandler {
         String postId = request.pathVariable("postId");
         String commentId = request.pathVariable("commentId");
         String userId = extractUserId(request);
+        String username = extractUsername(request);
 
-        log.info("User {} deleting comment {} from post {}", userId, commentId, postId);
+        log.info("User {} ({}) deleting comment {} from post {}", userId, username, commentId, postId);
 
-        return commentService.deleteComment(postId, commentId, userId)
+        return commentService.deleteComment(postId, commentId, userId, username)
                 .then(ServerResponse.noContent().build())
+                .onErrorResume(this::handleError);
+    }
+
+        // PUT /posts/{postId}/comments/{commentId}
+    public Mono<ServerResponse> updateComment(ServerRequest request) {
+        String postId = request.pathVariable("postId");
+        String commentId = request.pathVariable("commentId");
+        String userId = extractUserId(request);
+
+        log.info("User {} updating comment {} on post {}", userId, commentId, postId);
+
+        return request.bodyToMono(CommentRequest.class)
+                .flatMap(body -> commentService.updateComment(postId, commentId, body, userId))
+                .flatMap(commentResponse ->
+                        ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(commentResponse)
+                )
                 .onErrorResume(this::handleError);
     }
 
