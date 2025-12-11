@@ -113,3 +113,107 @@ __global__ void draw_texture_balls(
 mod = SourceModule(kernel_code)
 update_balls_kernel = mod.get_function("update_balls")
 draw_texture_kernel = mod.get_function("draw_texture_balls")
+
+
+def init_balls(num, width, height, radius):
+    pos = []
+    vel = []
+
+    for _ in range(num):
+        x = np.random.uniform(radius, width - radius)
+        y = np.random.uniform(radius, height - radius)
+        vx = np.random.uniform(-200, 200)
+        vy = np.random.uniform(-200, 200)
+        pos += [x, y]
+        vel += [vx, vy]
+
+    pos = np.array(pos, dtype=np.float32)
+    vel = np.array(vel, dtype=np.float32)
+
+    d_pos = cuda.mem_alloc(pos.nbytes)
+    d_vel = cuda.mem_alloc(vel.nbytes)
+
+    cuda.memcpy_htod(d_pos, pos)
+    cuda.memcpy_htod(d_vel, vel)
+
+    return d_pos, d_vel, pos, vel
+
+
+def simulate_boomerang(img, num_balls=3, frames=30):
+    h, w, ch = img.shape
+    radius = int(0.06 * min(w, h))
+    dt = 0.04
+
+    tex_path = "/home/bryam/Escritorio/Proyectointerciclo /UPSGlam-2.0/cuda-service/filters/assets/sonrisa.png"
+    tex = cv2.imread(tex_path, cv2.IMREAD_UNCHANGED)
+
+    if tex is None:
+        raise RuntimeError("❌ No se encontró la textura sonrisa.png")
+
+    tex = cv2.resize(tex, (2*radius, 2*radius), interpolation=cv2.INTER_AREA)
+    tex = tex.astype(np.uint8)
+
+    d_tex = cuda.mem_alloc(tex.nbytes)
+    cuda.memcpy_htod(d_tex, tex)
+
+    d_pos, d_vel, _, _ = init_balls(num_balls, w, h, radius)
+
+    d_bg = cuda.mem_alloc(img.nbytes)
+    d_out = cuda.mem_alloc(img.nbytes)
+
+    threads = 32
+    blocks = (num_balls + threads - 1) // threads
+
+    block2D = (16, 16, 1)
+    grid2D = ((w + 15) // 16, (h + 15) // 16, 1)
+
+    frames_out = []
+
+    for _ in range(frames):
+        update_balls_kernel(
+            d_pos, d_vel,
+            np.int32(num_balls),
+            np.float32(dt),
+            np.float32(w),
+            np.float32(h),
+            np.float32(radius),
+            block=(threads, 1, 1),
+            grid=(blocks, 1, 1)
+        )
+
+        bg_copy = img.copy()
+        out = np.empty_like(img)
+
+        cuda.memcpy_htod(d_bg, bg_copy)
+
+        draw_texture_kernel(
+            d_bg, d_out,
+            np.int32(w),
+            np.int32(h),
+            np.int32(ch),
+            d_pos,
+            np.int32(num_balls),
+            np.float32(radius),
+            d_tex,
+            np.int32(tex.shape[1]),
+            np.int32(tex.shape[0]),
+            block=block2D,
+            grid=grid2D
+        )
+
+        cuda.memcpy_dtoh(out, d_out)
+        frames_out.append(cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
+
+    out_name = f"boomerang_{uuid.uuid4().hex}.png"
+    out_path = os.path.join("/tmp", out_name)
+    cv2.imwrite(out_path, cv2.cvtColor(frames_out[-1], cv2.COLOR_RGB2BGR))
+
+    gif_bytes = imageio.mimsave(imageio.RETURN_BYTES, frames_out, format="GIF", duration=0.06)
+
+    d_pos.free()
+    d_vel.free()
+    d_bg.free()
+    d_out.free()
+    d_tex.free()
+
+    return gif_bytes, out_path
