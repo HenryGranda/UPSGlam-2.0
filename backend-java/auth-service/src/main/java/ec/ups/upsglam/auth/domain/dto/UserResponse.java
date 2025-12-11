@@ -19,4 +19,6 @@ public class UserResponse {
     private String fullName;
     private String photoUrl;
     private String bio;
+    private Long followersCount;
+    private Long followingCount;
 }

@@ -19,12 +19,18 @@ public class GatewayController {
                 "version", "2.0",
                 "description", "Punto de entrada único para todos los microservicios",
                 "routes", Map.of(
+                        "auth", Map.of(
+                                "register", "/api/auth/register",
+                                "login", "/api/auth/login",
+                                "follows", "/api/auth/follows/**"
+                        ),
                         "posts", "/api/posts/**",
                         "feed", "/api/feed",
                         "images", "/api/images/**",
                         "filters", "/api/filters/**",
                         "health", Map.of(
                                 "gateway", "/actuator/health",
+                                "auth", "/api/health/auth",
                                 "posts", "/api/health/posts",
                                 "cuda", "/api/health/cuda"
                         )

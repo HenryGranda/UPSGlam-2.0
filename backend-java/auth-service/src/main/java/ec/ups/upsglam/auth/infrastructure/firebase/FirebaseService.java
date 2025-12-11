@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
 import ec.ups.upsglam.auth.domain.exception.*;
+import ec.ups.upsglam.auth.domain.model.Follow;
 import ec.ups.upsglam.auth.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +15,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 /**
  * Servicio para interactuar con Firebase Auth y Firestore
@@ -29,6 +32,7 @@ public class FirebaseService {
     private final Firestore firestore;
     
     private static final String USERS_COLLECTION = "users";
+    private static final String FOLLOWS_COLLECTION = "follows";
 
     /**
      * Crear usuario en Firebase Auth
@@ -87,6 +91,8 @@ public class FirebaseService {
                 userData.put("photoUrl", null);
                 userData.put("bio", null);
                 userData.put("createdAt", System.currentTimeMillis());
+                userData.put("followersCount", 0L);
+                userData.put("followingCount", 0L);
                 
                 firestore.collection(USERS_COLLECTION)
                         .document(uid)
@@ -103,6 +109,8 @@ public class FirebaseService {
                         .photoUrl(null)
                         .bio(null)
                         .createdAt((Long) userData.get("createdAt"))
+                        .followersCount(0L)
+                        .followingCount(0L)
                         .build();
             } catch (InterruptedException | ExecutionException e) {
                 log.error("Error guardando usuario en Firestore", e);
@@ -134,6 +142,8 @@ public class FirebaseService {
                         .photoUrl(document.getString("photoUrl"))
                         .bio(document.getString("bio"))
                         .createdAt(document.getLong("createdAt"))
+                        .followersCount(document.getLong("followersCount") != null ? document.getLong("followersCount") : 0L)
+                        .followingCount(document.getLong("followingCount") != null ? document.getLong("followingCount") : 0L)
                         .build();
             } catch (InterruptedException | ExecutionException e) {
                 log.error("Error obteniendo usuario de Firestore", e);
@@ -167,6 +177,8 @@ public class FirebaseService {
                         .photoUrl(document.getString("photoUrl"))
                         .bio(document.getString("bio"))
                         .createdAt(document.getLong("createdAt"))
+                        .followersCount(document.getLong("followersCount") != null ? document.getLong("followersCount") : 0L)
+                        .followingCount(document.getLong("followingCount") != null ? document.getLong("followingCount") : 0L)
                         .build();
             } catch (InterruptedException | ExecutionException e) {
                 log.error("Error buscando usuario por email", e);
@@ -203,6 +215,8 @@ public class FirebaseService {
                         .photoUrl(document.getString("photoUrl"))
                         .bio(document.getString("bio"))
                         .createdAt(document.getLong("createdAt"))
+                        .followersCount(document.getLong("followersCount") != null ? document.getLong("followersCount") : 0L)
+                        .followingCount(document.getLong("followingCount") != null ? document.getLong("followingCount") : 0L)
                         .build();
             } catch (InterruptedException | ExecutionException e) {
                 log.error("Error buscando usuario por username", e);
@@ -271,5 +285,273 @@ public class FirebaseService {
                 throw new RuntimeException("Error creando token");
             }
         }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    // ==================== MÉTODOS PARA FOLLOWS ====================
+
+    /**
+     * Crear una relación de follow en Firestore
+     */
+    public Mono<Follow> createFollow(String followerUserId, String followedUserId) {
+        return Mono.fromCallable(() -> {
+            try {
+                // Validar que no sea auto-follow
+                if (followerUserId.equals(followedUserId)) {
+                    throw new SelfFollowException();
+                }
+
+                // Verificar que ambos usuarios existen
+                if (!userExists(followerUserId) || !userExists(followedUserId)) {
+                    throw new UserNotFoundException("Uno de los usuarios no existe");
+                }
+
+                // Crear el documento de follow
+                String followId = followerUserId + "_" + followedUserId;
+                Map<String, Object> followData = new HashMap<>();
+                followData.put("followerUserId", followerUserId);
+                followData.put("followedUserId", followedUserId);
+                followData.put("createdAt", System.currentTimeMillis());
+
+                firestore.collection(FOLLOWS_COLLECTION)
+                        .document(followId)
+                        .set(followData)
+                        .get();
+
+                // Incrementar contadores
+                incrementFollowersCount(followedUserId);
+                incrementFollowingCount(followerUserId);
+
+                log.info("Follow creado: {} sigue a {}", followerUserId, followedUserId);
+
+                return Follow.builder()
+                        .id(followId)
+                        .followerUserId(followerUserId)
+                        .followedUserId(followedUserId)
+                        .createdAt((Long) followData.get("createdAt"))
+                        .build();
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Error creando follow", e);
+                throw new RuntimeException("Error creando follow");
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Eliminar una relación de follow
+     */
+    public Mono<Void> deleteFollow(String followerUserId, String followedUserId) {
+        return Mono.fromCallable(() -> {
+            try {
+                String followId = followerUserId + "_" + followedUserId;
+                
+                // Verificar que existe el follow
+                var doc = firestore.collection(FOLLOWS_COLLECTION)
+                        .document(followId)
+                        .get()
+                        .get();
+
+                if (!doc.exists()) {
+                    throw new FollowNotFoundException(followerUserId, followedUserId);
+                }
+
+                // Eliminar el documento
+                firestore.collection(FOLLOWS_COLLECTION)
+                        .document(followId)
+                        .delete()
+                        .get();
+
+                // Decrementar contadores
+                decrementFollowersCount(followedUserId);
+                decrementFollowingCount(followerUserId);
+
+                log.info("Follow eliminado: {} dejó de seguir a {}", followerUserId, followedUserId);
+                return null;
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Error eliminando follow", e);
+                throw new RuntimeException("Error eliminando follow");
+            }
+        }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
+    /**
+     * Verificar si un usuario sigue a otro
+     */
+    public Mono<Boolean> isFollowing(String followerUserId, String followedUserId) {
+        return Mono.fromCallable(() -> {
+            try {
+                String followId = followerUserId + "_" + followedUserId;
+                var doc = firestore.collection(FOLLOWS_COLLECTION)
+                        .document(followId)
+                        .get()
+                        .get();
+                return doc.exists();
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Error verificando follow", e);
+                return false;
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Obtener lista de seguidores de un usuario
+     */
+    public Mono<List<User>> getFollowers(String userId) {
+        return Mono.fromCallable(() -> {
+            try {
+                var query = firestore.collection(FOLLOWS_COLLECTION)
+                        .whereEqualTo("followedUserId", userId)
+                        .get()
+                        .get();
+
+                return query.getDocuments().stream()
+                        .map(doc -> doc.getString("followerUserId"))
+                        .map(followerId -> getUserFromFirestore(followerId).block())
+                        .collect(Collectors.toList());
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Error obteniendo seguidores", e);
+                throw new RuntimeException("Error obteniendo seguidores");
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Obtener lista de usuarios que sigue un usuario
+     */
+    public Mono<List<User>> getFollowing(String userId) {
+        return Mono.fromCallable(() -> {
+            try {
+                var query = firestore.collection(FOLLOWS_COLLECTION)
+                        .whereEqualTo("followerUserId", userId)
+                        .get()
+                        .get();
+
+                return query.getDocuments().stream()
+                        .map(doc -> doc.getString("followedUserId"))
+                        .map(followedId -> getUserFromFirestore(followedId).block())
+                        .collect(Collectors.toList());
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("Error obteniendo following", e);
+                throw new RuntimeException("Error obteniendo following");
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Obtener conteo de seguidores
+     */
+    public Mono<Long> getFollowersCount(String userId) {
+        return Mono.fromCallable(() -> {
+            try {
+                var user = getUserFromFirestore(userId).block();
+                return user.getFollowersCount() != null ? user.getFollowersCount() : 0L;
+            } catch (Exception e) {
+                log.error("Error obteniendo conteo de seguidores", e);
+                return 0L;
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Obtener conteo de following
+     */
+    public Mono<Long> getFollowingCount(String userId) {
+        return Mono.fromCallable(() -> {
+            try {
+                var user = getUserFromFirestore(userId).block();
+                return user.getFollowingCount() != null ? user.getFollowingCount() : 0L;
+            } catch (Exception e) {
+                log.error("Error obteniendo conteo de following", e);
+                return 0L;
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    // ==================== MÉTODOS PRIVADOS AUXILIARES ====================
+
+    /**
+     * Verificar si un usuario existe
+     */
+    private boolean userExists(String userId) {
+        try {
+            var doc = firestore.collection(USERS_COLLECTION)
+                    .document(userId)
+                    .get()
+                    .get();
+            return doc.exists();
+        } catch (InterruptedException | ExecutionException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Incrementar contador de seguidores
+     */
+    private void incrementFollowersCount(String userId) {
+        try {
+            var userDoc = firestore.collection(USERS_COLLECTION).document(userId);
+            var doc = userDoc.get().get();
+            Long currentCount = doc.getLong("followersCount");
+            currentCount = currentCount != null ? currentCount : 0L;
+            
+            Map<String, Object> update = new HashMap<>();
+            update.put("followersCount", currentCount + 1);
+            userDoc.update(update).get();
+        } catch (Exception e) {
+            log.error("Error incrementando followersCount", e);
+        }
+    }
+
+    /**
+     * Decrementar contador de seguidores
+     */
+    private void decrementFollowersCount(String userId) {
+        try {
+            var userDoc = firestore.collection(USERS_COLLECTION).document(userId);
+            var doc = userDoc.get().get();
+            Long currentCount = doc.getLong("followersCount");
+            currentCount = currentCount != null ? currentCount : 0L;
+            
+            Map<String, Object> update = new HashMap<>();
+            update.put("followersCount", Math.max(0, currentCount - 1));
+            userDoc.update(update).get();
+        } catch (Exception e) {
+            log.error("Error decrementando followersCount", e);
+        }
+    }
+
+    /**
+     * Incrementar contador de following
+     */
+    private void incrementFollowingCount(String userId) {
+        try {
+            var userDoc = firestore.collection(USERS_COLLECTION).document(userId);
+            var doc = userDoc.get().get();
+            Long currentCount = doc.getLong("followingCount");
+            currentCount = currentCount != null ? currentCount : 0L;
+            
+            Map<String, Object> update = new HashMap<>();
+            update.put("followingCount", currentCount + 1);
+            userDoc.update(update).get();
+        } catch (Exception e) {
+            log.error("Error incrementando followingCount", e);
+        }
+    }
+
+    /**
+     * Decrementar contador de following
+     */
+    private void decrementFollowingCount(String userId) {
+        try {
+            var userDoc = firestore.collection(USERS_COLLECTION).document(userId);
+            var doc = userDoc.get().get();
+            Long currentCount = doc.getLong("followingCount");
+            currentCount = currentCount != null ? currentCount : 0L;
+            
+            Map<String, Object> update = new HashMap<>();
+            update.put("followingCount", Math.max(0, currentCount - 1));
+            userDoc.update(update).get();
+        } catch (Exception e) {
+            log.error("Error decrementando followingCount", e);
+        }
     }
 }

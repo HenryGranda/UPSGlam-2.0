@@ -81,6 +81,8 @@ public class UserService {
                 .fullName(user.getFullName())
                 .photoUrl(user.getPhotoUrl())
                 .bio(user.getBio())
+                .followersCount(user.getFollowersCount())
+                .followingCount(user.getFollowingCount())
                 .build();
     }
 }

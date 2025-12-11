@@ -39,6 +39,47 @@ spring:
           filters:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
+        # Follow/Unfollow routes
+        - id: auth-service-follow-user
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/follows
+            - Method=POST
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-unfollow-user
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}
+            - Method=DELETE
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-follow-stats
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/stats
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-followers
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/followers
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-following
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/following
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
         # ===============================
         # POST SERVICE ROUTES
         # ===============================

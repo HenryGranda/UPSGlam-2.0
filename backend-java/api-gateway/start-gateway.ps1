@@ -2,10 +2,10 @@
 Write-Host "Iniciando API Gateway..." -ForegroundColor Cyan
 
 # Ir al directorio correcto
-Set-Location $PSScriptRoot
+Set-Location C:\Users\EleXc\Music\upsGLAM\UPSGlam-2.0\backend-java\api-gateway
 
 # Configurar Java 21
-$env:JAVA_HOME = 'C:\Program Files\jdk-21.0.6+7'
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-21'
 
 # Recompilar
 Write-Host "Compilando..." -ForegroundColor Yellow

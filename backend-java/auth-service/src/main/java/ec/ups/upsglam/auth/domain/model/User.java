@@ -20,4 +20,6 @@ public class User {
     private String photoUrl;
     private String bio;
     private Long createdAt;      // Timestamp
+    private Long followersCount; // Número de seguidores
+    private Long followingCount; // Número de personas que sigue
 }
