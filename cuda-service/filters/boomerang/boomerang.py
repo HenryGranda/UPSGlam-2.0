@@ -3,6 +3,7 @@ import cv2
 import imageio
 import uuid
 import os
+from pathlib import Path
 
 import pycuda.autoinit
 import pycuda.driver as cuda
@@ -144,11 +145,12 @@ def simulate_boomerang(img, num_balls=3, frames=30):
     radius = int(0.06 * min(w, h))
     dt = 0.04
 
-    tex_path = "/home/bryam/Escritorio/Proyectointerciclo /UPSGlam-2.0/cuda-service/filters/assets/sonrisa.png"
+    assets_dir = Path(__file__).resolve().parents[1] / "assets"
+    tex_path = assets_dir / "sonrisa.png"
     tex = cv2.imread(tex_path, cv2.IMREAD_UNCHANGED)
 
     if tex is None:
-        raise RuntimeError("❌ No se encontró la textura sonrisa.png")
+        raise RuntimeError("❌ No se encontró la textura sonrisa.png en filters/assets")
 
     tex = cv2.resize(tex, (2*radius, 2*radius), interpolation=cv2.INTER_AREA)
     tex = tex.astype(np.uint8)

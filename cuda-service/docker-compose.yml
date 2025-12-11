@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   cuda-service:
-    build: ./cuda-service
+    build: .
     container_name: cuda_service
     ports:
       - "8000:8000"
@@ -10,11 +10,13 @@ services:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     restart: always
 
   api-java:
-    build: ./backend-java
+    build: ../backend-java
     container_name: api_java
     ports:
       - "8080:8080"

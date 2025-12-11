@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import uuid
 import os
+from pathlib import Path
 
 import pycuda.autoinit
 import pycuda.driver as cuda
@@ -249,7 +250,8 @@ def apply_ups_logo(base_img):
     """
     base_img = imagen BGR subida por FastAPI
     """
-    overlay_path = "filters/assets/filtro_don_bosco.png"
+    assets_dir = Path(__file__).resolve().parents[1] / "assets"
+    overlay_path = assets_dir / "filtro_don_bosco.png"
     overlay = cv2.imread(overlay_path, cv2.IMREAD_UNCHANGED)
 
     if overlay is None:
