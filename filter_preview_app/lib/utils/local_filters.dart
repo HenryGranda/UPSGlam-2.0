@@ -8,7 +8,9 @@ import 'dart:math' as math;
 class LocalFilters {
   static bool _assetsLoaded = false;
   static img.Image? _sonrisaTexture;
+  static img.Image? _upsOverlayTexture;
   static final Map<int, img.Image> _resizedTextureCache = {};
+  static final Map<String, img.Image> _upsOverlayCache = {};
   static final List<_BoomerangBall> _boomerangBalls = [];
   static double _boomerangWidth = 0;
   static double _boomerangHeight = 0;
@@ -22,170 +24,350 @@ class LocalFilters {
       final data = await rootBundle.load('assets/sonrisa.png');
       final bytes = data.buffer.asUint8List();
       _sonrisaTexture = img.decodeImage(bytes);
+
+      final overlayData = await rootBundle.load('assets/filtro_don_bosco.png');
+      final overlayBytes = overlayData.buffer.asUint8List();
+      _upsOverlayTexture = img.decodeImage(overlayBytes);
     } catch (_) {
       _sonrisaTexture = null;
+      _upsOverlayTexture = null;
     } finally {
       _assetsLoaded = true;
     }
   }
-  
+
   /// Aplica filtro Prewitt OPTIMIZADO para tiempo real
-  /// Versión simplificada con gain reducido
   static img.Image applyPrewitt(img.Image image, {double gain = 3.0}) {
-    // Convertir a escala de grises
     final gray = img.grayscale(image);
     final w = gray.width;
     final h = gray.height;
     final result = img.Image(width: w, height: h);
-    
-    // Procesar directamente sin buffers intermedios (más rápido)
+
     for (int y = 1; y < h - 1; y++) {
       for (int x = 1; x < w - 1; x++) {
-        // Kernel Prewitt X: [-1 0 1; -1 0 1; -1 0 1]
-        final gx = 
-          -gray.getPixel(x - 1, y - 1).r.toDouble() +
-           gray.getPixel(x + 1, y - 1).r.toDouble() +
-          -gray.getPixel(x - 1, y).r.toDouble() +
-           gray.getPixel(x + 1, y).r.toDouble() +
-          -gray.getPixel(x - 1, y + 1).r.toDouble() +
-           gray.getPixel(x + 1, y + 1).r.toDouble();
-        
-        // Kernel Prewitt Y: [-1 -1 -1; 0 0 0; 1 1 1]
-        final gy = 
-          -gray.getPixel(x - 1, y - 1).r.toDouble() +
-          -gray.getPixel(x, y - 1).r.toDouble() +
-          -gray.getPixel(x + 1, y - 1).r.toDouble() +
-           gray.getPixel(x - 1, y + 1).r.toDouble() +
-           gray.getPixel(x, y + 1).r.toDouble() +
-           gray.getPixel(x + 1, y + 1).r.toDouble();
-        
-        // Magnitud combinada con gain reducido
+        final gx =
+            -gray.getPixel(x - 1, y - 1).r.toDouble() +
+                gray.getPixel(x + 1, y - 1).r.toDouble() +
+                -gray.getPixel(x - 1, y).r.toDouble() +
+                gray.getPixel(x + 1, y).r.toDouble() +
+                -gray.getPixel(x - 1, y + 1).r.toDouble() +
+                gray.getPixel(x + 1, y + 1).r.toDouble();
+
+        final gy =
+            -gray.getPixel(x - 1, y - 1).r.toDouble() +
+                -gray.getPixel(x, y - 1).r.toDouble() +
+                -gray.getPixel(x + 1, y - 1).r.toDouble() +
+                gray.getPixel(x - 1, y + 1).r.toDouble() +
+                gray.getPixel(x, y + 1).r.toDouble() +
+                gray.getPixel(x + 1, y + 1).r.toDouble();
+
         final mag = (gx.abs() + gy.abs()) * gain * 0.1;
         final v = mag.clamp(0, 255).toInt();
         result.setPixelRgba(x, y, v, v, v, 255);
       }
     }
-    
+
     return result;
   }
-  
+
   /// Aplica filtro Laplacian OPTIMIZADO para tiempo real
   static img.Image applyLaplacian(img.Image image, {double gain = 2.0}) {
     final gray = img.grayscale(image);
     final w = gray.width;
     final h = gray.height;
     final result = img.Image(width: w, height: h);
-    
-    // Kernel Laplacian optimizado: [-1 -1 -1; -1 8 -1; -1 -1 -1]
+
     for (int y = 1; y < h - 1; y++) {
       for (int x = 1; x < w - 1; x++) {
         final center = gray.getPixel(x, y).r.toDouble() * 8;
-        final neighbors = 
-          gray.getPixel(x - 1, y - 1).r.toDouble() +
-          gray.getPixel(x, y - 1).r.toDouble() +
-          gray.getPixel(x + 1, y - 1).r.toDouble() +
-          gray.getPixel(x - 1, y).r.toDouble() +
-          gray.getPixel(x + 1, y).r.toDouble() +
-          gray.getPixel(x - 1, y + 1).r.toDouble() +
-          gray.getPixel(x, y + 1).r.toDouble() +
-          gray.getPixel(x + 1, y + 1).r.toDouble();
-        
+        final neighbors =
+            gray.getPixel(x - 1, y - 1).r.toDouble() +
+                gray.getPixel(x, y - 1).r.toDouble() +
+                gray.getPixel(x + 1, y - 1).r.toDouble() +
+                gray.getPixel(x - 1, y).r.toDouble() +
+                gray.getPixel(x + 1, y).r.toDouble() +
+                gray.getPixel(x - 1, y + 1).r.toDouble() +
+                gray.getPixel(x, y + 1).r.toDouble() +
+                gray.getPixel(x + 1, y + 1).r.toDouble();
+
         final v = ((center - neighbors) * gain * 0.1).clamp(0, 255).toInt();
         result.setPixelRgba(x, y, v, v, v, 255);
       }
     }
-    
+
     return result;
   }
-  
-  /// Aplica Gaussian Blur
+
+  /// Aplica Gaussian Blur (de la librería)
   static img.Image applyGaussian(img.Image image) {
-    return img.gaussianBlur(image, radius: 5);
+    return img.gaussianBlur(image, radius: 4);
   }
-  
-  /// Aplica efecto Blox Blur (pixelado por bloques)
-  static img.Image applyBloxBlur(img.Image image, {int blockSize = 12}) {
-    final result = img.Image.from(image);
-    final h = result.height;
-    final w = result.width;
 
-    for (int y = 0; y < h; y += blockSize) {
-      final yEnd = math.min(y + blockSize, h);
-      for (int x = 0; x < w; x += blockSize) {
-        final xEnd = math.min(x + blockSize, w);
+  /// Aplica efecto Blox Blur con promedio suave
+  static img.Image applyBloxBlur(
+    img.Image image, {
+    int radius = 3,
+    int passes = 1,
+  }) {
+    radius = radius.clamp(1, 12);
+    passes = passes.clamp(1, 2);
 
-        double rSum = 0, gSum = 0, bSum = 0;
-        final count = (yEnd - y) * (xEnd - x);
+    img.Image src = img.Image.from(image);
+    final img.Image temp = img.Image(width: image.width, height: image.height);
 
-        for (int yy = y; yy < yEnd; yy++) {
-          for (int xx = x; xx < xEnd; xx++) {
-            final pixel = result.getPixel(xx, yy);
-            rSum += pixel.r.toDouble();
-            gSum += pixel.g.toDouble();
-            bSum += pixel.b.toDouble();
-          }
-        }
-
-        final avgR = (rSum / count).round().clamp(0, 255).toInt();
-        final avgG = (gSum / count).round().clamp(0, 255).toInt();
-        final avgB = (bSum / count).round().clamp(0, 255).toInt();
-
-        for (int yy = y; yy < yEnd; yy++) {
-          for (int xx = x; xx < xEnd; xx++) {
-            result.setPixelRgba(xx, yy, avgR, avgG, avgB, 255);
-          }
-        }
-      }
+    for (int i = 0; i < passes; i++) {
+      _boxBlurHorizontal(src, temp, radius);
+      _boxBlurVertical(temp, src, radius);
     }
 
-    return result;
+    return src;
   }
 
-  /// Versión clásica de box blur (se mantiene como respaldo)
+  static void _boxBlurHorizontal(img.Image src, img.Image dst, int radius) {
+    final width = src.width;
+    final height = src.height;
+    final window = radius * 2 + 1;
+
+    for (int y = 0; y < height; y++) {
+      double rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+
+      for (int ix = -radius; ix <= radius; ix++) {
+        final sx = ix.clamp(0, width - 1);
+        final pixel = src.getPixel(sx, y);
+        rSum += pixel.r;
+        gSum += pixel.g;
+        bSum += pixel.b;
+        aSum += pixel.a;
+      }
+
+      for (int x = 0; x < width; x++) {
+        dst.setPixelRgba(
+          x,
+          y,
+          (rSum / window).round().clamp(0, 255),
+          (gSum / window).round().clamp(0, 255),
+          (bSum / window).round().clamp(0, 255),
+          (aSum / window).round().clamp(0, 255),
+        );
+
+        final removeX = (x - radius).clamp(0, width - 1);
+        final addX = (x + radius + 1).clamp(0, width - 1);
+        final removePixel = src.getPixel(removeX, y);
+        final addPixel = src.getPixel(addX, y);
+
+        rSum += addPixel.r - removePixel.r;
+        gSum += addPixel.g - removePixel.g;
+        bSum += addPixel.b - removePixel.b;
+        aSum += addPixel.a - removePixel.a;
+      }
+    }
+  }
+
+  static void _boxBlurVertical(img.Image src, img.Image dst, int radius) {
+    final width = src.width;
+    final height = src.height;
+    final window = radius * 2 + 1;
+
+    for (int x = 0; x < width; x++) {
+      double rSum = 0, gSum = 0, bSum = 0, aSum = 0;
+
+      for (int iy = -radius; iy <= radius; iy++) {
+        final sy = iy.clamp(0, height - 1);
+        final pixel = src.getPixel(x, sy);
+        rSum += pixel.r;
+        gSum += pixel.g;
+        bSum += pixel.b;
+        aSum += pixel.a;
+      }
+
+      for (int y = 0; y < height; y++) {
+        dst.setPixelRgba(
+          x,
+          y,
+          (rSum / window).round().clamp(0, 255),
+          (gSum / window).round().clamp(0, 255),
+          (bSum / window).round().clamp(0, 255),
+          (aSum / window).round().clamp(0, 255),
+        );
+
+        final removeY = (y - radius).clamp(0, height - 1);
+        final addY = (y + radius + 1).clamp(0, height - 1);
+        final removePixel = src.getPixel(x, removeY);
+        final addPixel = src.getPixel(x, addY);
+
+        rSum += addPixel.r - removePixel.r;
+        gSum += addPixel.g - removePixel.g;
+        bSum += addPixel.b - removePixel.b;
+        aSum += addPixel.a - removePixel.a;
+      }
+    }
+  }
+
+  /// Versión clásica de box blur (respaldo)
   static img.Image applyBoxBlur(img.Image image) {
     return img.convolution(
       image,
       filter: [
-        1/9, 1/9, 1/9,
-        1/9, 1/9, 1/9,
-        1/9, 1/9, 1/9,
+        1 / 9, 1 / 9, 1 / 9,
+        1 / 9, 1 / 9, 1 / 9,
+        1 / 9, 1 / 9, 1 / 9,
       ],
     );
   }
-  
-  /// Aplica efecto Don Bosco (aura dorada + tinte suave)
+
+  /// Aplica efecto Don Bosco (aura dorada + overlay UPS)
   static img.Image applyUpsLogo(img.Image image) {
-    final result = img.Image.from(image);
-    
-    for (int y = 0; y < result.height; y++) {
-      for (int x = 0; x < result.width; x++) {
-        final pixel = result.getPixel(x, y);
-        
-        // Luminancia
-        final lum = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b) / 255.0;
-        
-        // Aplicar tinte dorado UPS (242, 169, 0)
-        final factor = 0.25 * lum;
-        final r = (pixel.r + (242 - pixel.r) * factor).clamp(0, 255).toInt();
-        final g = (pixel.g + (169 - pixel.g) * factor).clamp(0, 255).toInt();
-        final b = (pixel.b * (1 - factor * 0.3)).clamp(0, 255).toInt();
-        
-        result.setPixelRgba(x, y, r, g, b, 255);
+    final width = image.width;
+    final height = image.height;
+    img.Image? overlayTexture;
+    if (_upsOverlayTexture != null) {
+      overlayTexture = _getUpsOverlayResized(
+        _upsOverlayTexture!,
+        width,
+        height,
+      );
+    }
+
+    final baseOverlay = overlayTexture ?? image;
+    final result = img.Image.from(baseOverlay);
+    final time = DateTime.now().millisecondsSinceEpoch / 1000.0;
+
+    const brown = [58, 44, 26];
+    const gold = [242, 169, 0];
+
+    const threshold = 0.35;
+    const waveAmplitude = 0.02;
+    const waveFrequency = 14.0;
+    const glowStrength = 2.5;
+    const auraBlend = 0.65;
+    const haloStrength = 0.45;
+    const haloFalloff = 0.06;
+    const overlayTintStrength = 0.3;
+    const oscillationPx = 8.0;
+    const oscillationSpeed = 1.4;
+
+    final overlayWidth = (width * 0.33).round();
+    final overlayHeight = (height * 0.33).round();
+    final overlayLeft = (width * 0.60).round();
+    final overlayTop = (height * 0.40).round();
+    final overlayRight = overlayLeft + overlayWidth;
+    final overlayBottom = overlayTop + overlayHeight;
+
+    final cameraRegion = img.copyResize(
+      image,
+      width: overlayWidth,
+      height: overlayHeight,
+    );
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        final overlayPixel = baseOverlay.getPixel(x, y);
+        double fr = overlayPixel.r / 255.0;
+        double fg = overlayPixel.g / 255.0;
+        double fb = overlayPixel.b / 255.0;
+        double lumValue =
+            (0.2126 * overlayPixel.r +
+                    0.7152 * overlayPixel.g +
+                    0.0722 * overlayPixel.b) /
+                255.0;
+        double neigh = 0;
+        for (int oy = -1; oy <= 1; oy++) {
+          for (int ox = -1; ox <= 1; ox++) {
+            final nx = (x + ox).clamp(0, width - 1);
+            final ny = (y + oy).clamp(0, height - 1);
+            final np = baseOverlay.getPixel(nx, ny);
+            neigh += (0.2126 * np.r +
+                    0.7152 * np.g +
+                    0.0722 * np.b) /
+                255.0;
+          }
+        }
+        neigh /= 9.0;
+
+        final mask = lumValue > threshold ? 1.0 : 0.0;
+        final glowVal = (lumValue - neigh).abs() * glowStrength;
+        final auraMask = (mask + glowVal).clamp(0.0, 1.0);
+
+        final nxNorm = x / (width - 1);
+        final nyNorm = y / (height - 1);
+        final wave =
+            math.sin((nxNorm + nyNorm) * waveFrequency + time) * waveAmplitude;
+
+        final sx = ((nxNorm + wave).clamp(0.0, 1.0) * (width - 1)).round();
+        final sy = ((nyNorm + wave).clamp(0.0, 1.0) * (height - 1)).round();
+        final warpPixel = baseOverlay.getPixel(sx, sy);
+
+        final pal =
+            0.5 * (math.sin(time + nxNorm * 10 - nyNorm * 10) + 1.0);
+        final auraR = (brown[0] * (1 - pal) + gold[0] * pal) / 255.0;
+        final auraG = (brown[1] * (1 - pal) + gold[1] * pal) / 255.0;
+        final auraB = (brown[2] * (1 - pal) + gold[2] * pal) / 255.0;
+
+        final aA = (auraMask * auraBlend).clamp(0.0, 1.0);
+        fr = warpPixel.r / 255.0 * (1.0 - aA) + auraR * aA;
+        fg = warpPixel.g / 255.0 * (1.0 - aA) + auraG * aA;
+        fb = warpPixel.b / 255.0 * (1.0 - aA) + auraB * aA;
+
+        final dynTop =
+            overlayTop + math.sin(time * oscillationSpeed) * oscillationPx;
+        final dynBottom = dynTop + overlayHeight;
+        final dynLeft = overlayLeft.toDouble();
+        final dynRight = dynLeft + overlayWidth;
+
+        double dxh = 0.0;
+        if (x < dynLeft) dxh = dynLeft - x;
+        else if (x > dynRight) dxh = x - dynRight;
+
+        double dyh = 0.0;
+        if (y < dynTop) dyh = dynTop - y;
+        else if (y > dynBottom) dyh = y - dynBottom;
+
+        final dist = math.sqrt(dxh * dxh + dyh * dyh);
+        final halo = math.exp(-dist * haloFalloff) * haloStrength;
+
+        fr = (fr + (gold[0] / 255.0) * halo).clamp(0.0, 1.0);
+        fg = (fg + (gold[1] / 255.0) * halo).clamp(0.0, 1.0);
+        fb = (fb + (gold[2] / 255.0) * halo).clamp(0.0, 1.0);
+
+        if (x >= overlayLeft &&
+            x < overlayRight &&
+            y >= overlayTop &&
+            y < overlayBottom) {
+          final localX = (x - overlayLeft).clamp(0, overlayWidth - 1);
+          final localY = (y - overlayTop).clamp(0, overlayHeight - 1);
+          final camPixel = cameraRegion.getPixel(localX, localY);
+          fr = camPixel.r / 255.0;
+          fg = camPixel.g / 255.0;
+          fb = camPixel.b / 255.0;
+        }
+
+        result.setPixelRgba(
+          x,
+          y,
+          (fr * 255).clamp(0, 255).toInt(),
+          (fg * 255).clamp(0, 255).toInt(),
+          (fb * 255).clamp(0, 255).toInt(),
+          255,
+        );
       }
     }
-    
+
     return result;
   }
-  
+
   /// Aplica efecto Boomerang simulando las pelotas luminosas del filtro CUDA
   static img.Image applyBoomerang(img.Image image, {int numOrbs = 3}) {
     final result = img.Image.from(image);
     final minSide = math.min(result.width, result.height).toDouble();
     final radius = math.max(14, math.min(90, (minSide * 0.07))).toDouble();
 
-    _updateBoomerangState(result.width.toDouble(), result.height.toDouble(), numOrbs, radius);
+    _updateBoomerangState(
+      result.width.toDouble(),
+      result.height.toDouble(),
+      numOrbs,
+      radius,
+    );
 
-    // Aumentar saturación base
     for (final pixel in result) {
       pixel
         ..r = (pixel.r * 1.05 + 10).clamp(0, 255).toInt()
@@ -193,14 +375,8 @@ class LocalFilters {
         ..b = (pixel.b * 1.08 + 8).clamp(0, 255).toInt();
     }
 
-    final textureBase = _sonrisaTexture;
-    img.Image? cachedTex;
-
     for (final ball in _boomerangBalls) {
-      img.Image? overlay;
-      if (textureBase != null) {
-        overlay = _getResizedTexture(textureBase!, radius);
-      }
+      final overlay = _getOrbTexture(radius);
 
       final dstX = (ball.x - radius).round();
       final dstY = (ball.y - radius).round();
@@ -208,7 +384,7 @@ class LocalFilters {
       if (overlay != null) {
         img.compositeImage(
           result,
-          overlay!,
+          overlay,
           dstX: dstX,
           dstY: dstY,
           blend: img.BlendMode.alpha,
@@ -217,18 +393,14 @@ class LocalFilters {
         _paintFallbackOrb(result, ball.x, ball.y, radius);
       }
 
-      // trail tenue
       if (overlay != null) {
         final trailX = (ball.x - ball.vx * 0.02 - radius * 0.7).round();
         final trailY = (ball.y - ball.vy * 0.02 - radius * 0.7).round();
-        final smaller = textureBase != null
-            ? _getResizedTexture(textureBase!, radius * 0.75)
-            : null;
+        final smaller = _getOrbTexture(radius * 0.75);
         if (smaller != null) {
-          final trailTexture = smaller;
           img.compositeImage(
             result,
-            trailTexture,
+            smaller,
             dstX: trailX,
             dstY: trailY,
             blend: img.BlendMode.alpha,
@@ -240,20 +412,94 @@ class LocalFilters {
     return result;
   }
 
-  static img.Image? _getResizedTexture(img.Image base, double radius) {
+  static img.Image? _getOrbTexture(double radius) {
     final size = (radius * 2).round().clamp(4, 512);
     if (_resizedTextureCache.containsKey(size)) {
       return _resizedTextureCache[size];
     }
-    final resized = img.copyResize(base, width: size, height: size, interpolation: img.Interpolation.cubic);
+    final orb = _buildOrbTexture(size);
     if (_resizedTextureCache.length > 6) {
       _resizedTextureCache.remove(_resizedTextureCache.keys.first);
     }
-    _resizedTextureCache[size] = resized;
+    _resizedTextureCache[size] = orb;
+    return orb;
+  }
+
+  static img.Image _buildOrbTexture(int size) {
+    final orb = img.Image(width: size, height: size);
+    final center = (size - 1) / 2.0;
+    final radius = center - 1.0;
+    final strokeWidth = 3.0;
+
+    for (int y = 0; y < size; y++) {
+      for (int x = 0; x < size; x++) {
+        final dx = x - center;
+        final dy = y - center;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        if (dist > radius) {
+          orb.setPixelRgba(x, y, 0, 0, 0, 0);
+          continue;
+        }
+
+        if (dist >= radius - strokeWidth) {
+          orb.setPixelRgba(x, y, 255, 255, 255, 255);
+        } else {
+          orb.setPixelRgba(x, y, 255, 255, 255, 200);
+        }
+      }
+    }
+
+    final texture = _sonrisaTexture;
+    if (texture != null) {
+      final innerSize = (size * 0.6).round().clamp(4, size - 4);
+      final resized = img.copyResize(
+        texture,
+        width: innerSize,
+        height: innerSize,
+        interpolation: img.Interpolation.cubic,
+      );
+      final dstX = ((size - innerSize) / 2).round();
+      final dstY = ((size - innerSize) / 2).round();
+      img.compositeImage(
+        orb,
+        resized,
+        dstX: dstX,
+        dstY: dstY,
+        blend: img.BlendMode.alpha,
+      );
+    }
+
+    return orb;
+  }
+
+  static img.Image? _getUpsOverlayResized(
+    img.Image base,
+    int width,
+    int height,
+  ) {
+    final key = '${width}x$height';
+    if (_upsOverlayCache.containsKey(key)) {
+      return _upsOverlayCache[key];
+    }
+    final resized = img.copyResize(
+      base,
+      width: width,
+      height: height,
+      interpolation: img.Interpolation.cubic,
+    );
+    if (_upsOverlayCache.length > 4) {
+      _upsOverlayCache.remove(_upsOverlayCache.keys.first);
+    }
+    _upsOverlayCache[key] = resized;
     return resized;
   }
 
-  static void _paintFallbackOrb(img.Image image, double cx, double cy, double radius) {
+  static void _paintFallbackOrb(
+    img.Image image,
+    double cx,
+    double cy,
+    double radius,
+  ) {
     final minX = math.max(0, (cx - radius).floor());
     final maxX = math.min(image.width - 1, (cx + radius).ceil());
     final minY = math.max(0, (cy - radius).floor());
@@ -268,16 +514,24 @@ class LocalFilters {
           final falloff = 1 - (dist / radius);
           final alpha = falloff * falloff;
           final pixel = image.getPixel(x, y);
-          final r = (pixel.r + (255 - pixel.r) * alpha).clamp(0, 255).toInt();
-          final g = (pixel.g + (220 - pixel.g) * alpha * 0.8).clamp(0, 255).toInt();
-          final b = (pixel.b + (120 - pixel.b) * alpha * 0.5).clamp(0, 255).toInt();
+          final r =
+              (pixel.r + (255 - pixel.r) * alpha).clamp(0, 255).toInt();
+          final g =
+              (pixel.g + (220 - pixel.g) * alpha * 0.8).clamp(0, 255).toInt();
+          final b =
+              (pixel.b + (120 - pixel.b) * alpha * 0.5).clamp(0, 255).toInt();
           image.setPixelRgba(x, y, r, g, b, 255);
         }
       }
     }
   }
 
-  static void _updateBoomerangState(double width, double height, int numBalls, double radius) {
+  static void _updateBoomerangState(
+    double width,
+    double height,
+    int numBalls,
+    double radius,
+  ) {
     if (_boomerangBalls.length != numBalls ||
         (width - _boomerangWidth).abs() > 40 ||
         (height - _boomerangHeight).abs() > 40) {
@@ -326,21 +580,29 @@ class LocalFilters {
       }
     }
   }
-  
+
   /// Procesa imagen ya decodificada
   static img.Image? applyFilterToImage(img.Image image, String filterId) {
     if (filterId == 'none' || filterId == 'caras') return null;
 
     img.Image working = image;
 
-    // Reducir tamaño para mantener el rendimiento
+    const int maxWidthEdges = 260;
+    const int maxWidthBlur = 420;
+    const int maxWidthFx = 420;
+
+    // 🔹 Siempre reducimos para PREVIEW en vivo (según tipo de filtro)
     if (filterId == 'prewitt' || filterId == 'laplacian') {
-      if (working.width > 260) {
-        working = img.copyResize(working, width: 260);
+      if (working.width > maxWidthEdges) {
+        working = img.copyResize(working, width: maxWidthEdges);
       }
-    } else {
-      if (working.width > 360) {
-        working = img.copyResize(working, width: 360);
+    } else if (filterId == 'gaussian' || filterId == 'box_blur') {
+      if (working.width > maxWidthBlur) {
+        working = img.copyResize(working, width: maxWidthBlur);
+      }
+    } else if (filterId == 'ups_logo' || filterId == 'boomerang') {
+      if (working.width > maxWidthFx) {
+        working = img.copyResize(working, width: maxWidthFx);
       }
     }
 
@@ -352,7 +614,7 @@ class LocalFilters {
       case 'gaussian':
         return applyGaussian(working);
       case 'box_blur':
-        return applyBloxBlur(working);
+        return applyBloxBlur(working, radius: 3, passes: 1);
       case 'ups_logo':
         return applyUpsLogo(working);
       case 'boomerang':
@@ -363,9 +625,12 @@ class LocalFilters {
   }
 
   /// Procesa imagen con el filtro seleccionado a partir de bytes (usado en capturas)
-  static Future<Uint8List?> processImageBytes(Uint8List bytes, String filterId) async {
+  static Future<Uint8List?> processImageBytes(
+    Uint8List bytes,
+    String filterId,
+  ) async {
     if (filterId == 'none' || filterId == 'caras') return null;
-    
+
     try {
       await ensureInitialized();
       final image = img.decodeImage(bytes);
@@ -373,14 +638,14 @@ class LocalFilters {
 
       final filtered = applyFilterToImage(image, filterId);
       if (filtered == null) return null;
-      
+
       return Uint8List.fromList(img.encodeJpg(filtered, quality: 80));
     } catch (e) {
       print('Error processing filter: $e');
       return null;
     }
   }
-  
+
   /// Retorna nombre display del filtro
   static String getFilterDisplayName(String filter) {
     const filterNames = {

@@ -111,7 +111,7 @@ class _CameraScreenState extends State<CameraScreen> {
     final currentFilter = _selectedFilter;
 
     try {
-      final img.Image rgb = _cameraImageToImage(cameraImage);
+      final img.Image rgb = _normalizeOrientation(_cameraImageToImage(cameraImage));
       final img.Image? filtered = LocalFilters.applyFilterToImage(rgb, currentFilter);
       if (!mounted || currentFilter != _selectedFilter) {
         _isProcessingFrame = false;
@@ -130,6 +130,36 @@ class _CameraScreenState extends State<CameraScreen> {
     } finally {
       _isProcessingFrame = false;
     }
+  }
+
+  img.Image _normalizeOrientation(img.Image image) {
+    final description = _controller?.description;
+    if (description == null) return image;
+
+    int rotation = description.sensorOrientation;
+    bool flipHorizontally = description.lensDirection == CameraLensDirection.front;
+
+    img.Image rotated;
+    switch (rotation) {
+      case 90:
+        rotated = img.copyRotate(image, angle: 90);
+        break;
+      case 270:
+        rotated = img.copyRotate(image, angle: -90);
+        break;
+      case 180:
+        rotated = img.copyRotate(image, angle: 180);
+        break;
+      default:
+        rotated = image;
+        break;
+    }
+
+    if (flipHorizontally) {
+      rotated = img.flipHorizontal(rotated);
+    }
+
+    return rotated;
   }
 
   img.Image _cameraImageToImage(CameraImage cameraImage) {
@@ -413,10 +443,16 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget _buildFilteredPreview() {
     // Si hay snapshot procesado, mostrarlo
     if (_previewSnapshot != null) {
-      return Image.memory(
-        _previewSnapshot!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
+      return Container(
+        color: Colors.black,
+        alignment: Alignment.center,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: Image.memory(
+            _previewSnapshot!,
+            gaplessPlayback: true,
+          ),
+        ),
       );
     }
     
@@ -429,7 +465,18 @@ class _CameraScreenState extends State<CameraScreen> {
         child: preview,
       );
     }
-    return preview;
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: _controller!.value.previewSize?.height ?? 1,
+          height: _controller!.value.previewSize?.width ?? 1,
+          child: preview,
+        ),
+      ),
+    );
   }
 
   String _getFilterDisplayName(String filter) {
