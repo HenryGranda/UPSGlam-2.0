@@ -243,3 +243,36 @@ class UPSLogoAuraFilter:
         d_out.free()
 
         return flat_out.reshape((h,w,4))
+
+
+def apply_ups_logo(base_img):
+    """
+    base_img = imagen BGR subida por FastAPI
+    """
+    overlay_path = "filters/assets/filtro_don_bosco.png"
+    overlay = cv2.imread(overlay_path, cv2.IMREAD_UNCHANGED)
+
+    if overlay is None:
+        raise RuntimeError("Overlay UPS no encontrado en filters/assets/filtro_don_bosco.png")
+
+    filt = UPSLogoAuraFilter()
+
+    result = filt.apply(
+        base_img,
+        overlay,
+        aura_params={"time": 1.0},
+        overlay_params={
+            "target_width": base_img.shape[1]//3,
+            "target_height": base_img.shape[0]//3,
+            "left": base_img.shape[1]*0.60,
+            "top":  base_img.shape[0]*0.40
+        }
+    )
+
+    out_name = f"ups_logo_{uuid.uuid4().hex}.png"
+    out_path = f"/tmp/{out_name}"
+
+    rgb = cv2.cvtColor(result[:,:,:3], cv2.COLOR_RGB2BGR)
+    cv2.imwrite(out_path, rgb)
+
+    return result, out_path
