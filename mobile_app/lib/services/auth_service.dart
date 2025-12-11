@@ -84,21 +84,18 @@ class AuthService {
       }),
     );
 
-    if (res.statusCode != 201) {
-      String msg = 'Error ${res.statusCode} al registrarse';
-      try {
-        final data = jsonDecode(res.body);
-        if (data is Map && data['message'] is String) {
-          msg = data['message'];
-        }
-      } catch (_) {}
-      throw Exception(msg);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return;
     }
-
-    // IMPORTANTE:
-    // El backend devuelve un token personalizado de Firebase.
-    // Como tu UI muestra "Cuenta creada. Ahora inicia sesión ",
-    // aquí solo validamos que todo salió bien y NO guardamos token todavía.
+    
+    String msg = 'Error ${res.statusCode} al registrarse';
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map && data['message'] is String) {
+        msg = data['message'];
+      }
+    } catch (_) {}
+    throw Exception(msg);
   }
 
   /// ==========================
@@ -228,4 +225,14 @@ class AuthService {
     throw UnimplementedError(
         'Login con Facebook aún no implementado en AuthService.');
   }
+
+  Future<String?> getUserId() async {
+    final user = await getStoredUser();
+    if (user == null) return null;
+    final id = user['id'];
+    if (id is String && id.isNotEmpty) return id;
+    return null;
+  }
+
+
 }

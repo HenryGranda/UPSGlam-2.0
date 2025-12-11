@@ -5,7 +5,6 @@ import 'services/auth_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Aquí luego tu amigo inicializa Firebase.initializeApp()
   runApp(const UPSGlamApp());
 }
 
@@ -20,7 +19,7 @@ class UPSGlamApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF003366), // azul UPS aprox
+          seedColor: const Color(0xFF003366),
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
       ),
@@ -30,7 +29,7 @@ class UPSGlamApp extends StatelessWidget {
 }
 
 /// =============================
-/// AUTH GATE (decide login vs app)
+/// AUTH GATE
 /// =============================
 class _AuthGate extends StatefulWidget {
   const _AuthGate();
@@ -41,6 +40,22 @@ class _AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<_AuthGate> {
   bool _loggedIn = false;
+  bool _checkingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExistingSession();
+  }
+
+  Future<void> _checkExistingSession() async {
+    final token = await AuthService.instance.getIdToken();
+    if (!mounted) return;
+    setState(() {
+      _loggedIn = token != null;
+      _checkingSession = false;
+    });
+  }
 
   void _handleLoginSuccess() {
     setState(() {
@@ -57,6 +72,12 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingSession) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (!_loggedIn) {
       return LoginScreen(
         onLoginSuccess: _handleLoginSuccess,

@@ -26,7 +26,7 @@ class _IpConfigScreenState extends State<IpConfigScreen> {
   }
 
   Future<void> _save() async {
-    final text = _ipController.text.trim();
+    var text = _ipController.text.trim();
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ingresa la IP o URL del backend')),
@@ -34,12 +34,24 @@ class _IpConfigScreenState extends State<IpConfigScreen> {
       return;
     }
 
+    // Si el usuario pone solo 192.168.x.x:8080, le agregamos http://
+    if (!text.startsWith('http://') && !text.startsWith('https://')) {
+      text = 'http://$text';
+    }
+
+    // Asegurar que tenga /api al final (según la doc del gateway)
+    if (!text.endsWith('/api')) {
+      // por si acaso ya puso una barra al final
+      text = text.replaceAll(RegExp(r'/+$'), '');
+      text = '$text/api';
+    }
+
     setState(() => _isSaving = true);
     await ApiConfig.setBaseUrl(text);
     setState(() => _isSaving = false);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Configuración guardada ✓')),
+      SnackBar(content: Text('Backend guardado: $text')),
     );
 
     Navigator.pop(context); // volvemos al login
@@ -60,7 +72,8 @@ class _IpConfigScreenState extends State<IpConfigScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Ingresa la IP o URL del backend Java que expone los servicios de UPSGlam 2.0',
+              'Ingresa la IP o URL del API Gateway de UPSGlam 2.0.\n'
+              'Ejemplo: http://192.168.1.10:8080/api',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 20),
@@ -68,9 +81,14 @@ class _IpConfigScreenState extends State<IpConfigScreen> {
               controller: _ipController,
               decoration: const InputDecoration(
                 labelText: 'IP o URL del backend Java',
-                hintText: 'http://192.168.1.10:8080',
+                hintText: 'http://192.168.1.10:8080/api',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Debe apuntar al API Gateway (puerto 8080) e incluir el sufijo /api.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const Spacer(),
             FilledButton(
