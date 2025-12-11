@@ -102,6 +102,11 @@ def process_convolution_bytes(
     Returns:
         bytes: Filtered image as JPEG bytes
     """
+    # Special handling for filters that work directly with bytes
+    if filter_name == "ups_logo":
+        from filters import apply_ups_logo_bytes
+        return apply_ups_logo_bytes(image_bytes)
+    
     # Get default config for filter
     config = FILTER_CONFIGS.get(filter_name, {"mask_size": 3})
     mask_size = config["mask_size"]

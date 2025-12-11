@@ -5,8 +5,9 @@ from .box_blur import box_blur_kernel, apply_box_blur_cuda
 from .gaussian import gaussian_kernel, apply_gaussian_cuda
 from .laplacian import laplacian_kernel, apply_laplacian_cuda
 from .prewitt import apply_prewitt_cuda
-from .ups_logo import ups_logo_cuda
+from .ups_logo import apply_ups_logo_bytes
 from .ups_color import ups_color_cuda
+from .boomerang import apply_boomerang_bytes
 
 
 def get_filter_kernel(filter_type: str, mask_size: int) -> dict:
@@ -86,11 +87,12 @@ def get_filter_kernel(filter_type: str, mask_size: int) -> dict:
         }
     
     if ft == "ups_logo":
-        # UPS Logo: Gaussian blur + logo overlay (Creative filter #1)
+        # UPS Logo: Logo overlay with aura effects (Creative filter #1)
+        # Note: This filter is handled directly in convolution_service.py as it works with bytes
         return {
             "type": "ups_logo",
-            "cuda_function": ups_logo_cuda,
-            "mask_size_used": 5,  # Uses 5x5 Gaussian internally
+            "cuda_function": apply_ups_logo_bytes,
+            "mask_size_used": 5,  # N/A for this filter
         }
     
     if ft == "ups_color":

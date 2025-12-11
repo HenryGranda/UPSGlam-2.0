@@ -76,7 +76,7 @@ def convolve(req: ConvolutionRequest):
 
 @app.post("/filters/{filter_name}")
 async def apply_filter(
-    filter_name: str = Path(..., description="Filter name: prewitt, laplacian, gaussian, box_blur, ups_logo, ups_color"),
+    filter_name: str = Path(..., description="Filter name: prewitt, laplacian, gaussian, box_blur, ups_logo, ups_color, boomerang"),
     request: Request = None
 ):
     """
@@ -97,14 +97,20 @@ async def apply_filter(
         - box_blur: mask_size=91 (strong smoothing)
         - prewitt: mask_size=3, gain=8.0 (edge detection)
         - laplacian: mask_size=3 (edge detection)
-        - ups_logo: mask_size=5 (blur + UPS logo)
+        - ups_logo: mask_size=5 (blur + UPS logo with aura effects)
         - ups_color: mask_size=1 (UPS color tint)
+        - boomerang: trail effect with textured balls (crisp sonrisa.png texture)
     
     Example:
         curl -X POST "http://localhost:5000/filters/gaussian" \\
              -H "Content-Type: image/jpeg" \\
              --data-binary "@input.jpg" \\
              -o "output_gaussian.jpg"
+        
+        curl -X POST "http://localhost:5000/filters/boomerang" \\
+             -H "Content-Type: image/jpeg" \\
+             --data-binary "@input.jpg" \\
+             -o "output_boomerang.jpg"
     """
     try:
         # Read raw image bytes from request body
@@ -113,16 +119,23 @@ async def apply_filter(
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty image body")
         
-        # Process with filter (preset configurations)
-        result_bytes = process_convolution_bytes(
-            image_bytes=image_bytes,
-            filter_name=filter_name,
-            preserve_color=True    # RGB output
-        )
+        # Special handling for boomerang (uses custom implementation)
+        if filter_name == "boomerang":
+            from filters.boomerang import apply_boomerang_bytes
+            result_bytes = apply_boomerang_bytes(image_bytes, num_balls=8)
+            media_type = "image/jpeg"
+        else:
+            # Process with filter (preset configurations)
+            result_bytes = process_convolution_bytes(
+                image_bytes=image_bytes,
+                filter_name=filter_name,
+                preserve_color=True    # RGB output
+            )
+            media_type = "image/jpeg"
         
         return Response(
             content=result_bytes,
-            media_type="image/jpeg",
+            media_type=media_type,
             headers={
                 "X-Filter-Applied": filter_name,
                 "Cache-Control": "no-cache"
@@ -154,37 +167,50 @@ async def list_filters():
                 "name": "prewitt",
                 "description": "Detección de bordes direccional (primera derivada)",
                 "type": "convolución",
-                "config": {"mask_size": 3, "gain": 8.0}
+                "config": {"mask_size": 3, "gain": 8.0},
+                "output": "image/jpeg"
             },
             {
                 "name": "laplacian",
                 "description": "Detección de bordes omnidireccional (segunda derivada)",
                 "type": "convolución",
-                "config": {"mask_size": 3}
+                "config": {"mask_size": 3},
+                "output": "image/jpeg"
             },
             {
                 "name": "gaussian",
                 "description": "Suavizado con distribución gaussiana (fuerte)",
                 "type": "convolución",
-                "config": {"mask_size": 121}
+                "config": {"mask_size": 121},
+                "output": "image/jpeg"
             },
             {
                 "name": "box_blur",
                 "description": "Suavizado rápido con promedio simple (fuerte)",
                 "type": "convolución",
-                "config": {"mask_size": 91}
+                "config": {"mask_size": 91},
+                "output": "image/jpeg"
             },
             {
                 "name": "ups_logo",
-                "description": "Filtro creativo con logo de la UPS",
+                "description": "Filtro creativo con logo de la UPS y efectos de aura",
                 "type": "creativo",
-                "config": {"mask_size": 5}
+                "config": {"mask_size": 5},
+                "output": "image/jpeg"
             },
             {
                 "name": "ups_color",
                 "description": "Tinte con colores corporativos de la UPS",
                 "type": "creativo",
-                "config": {"mask_size": 1}
+                "config": {"mask_size": 1},
+                "output": "image/jpeg"
+            },
+            {
+                "name": "boomerang",
+                "description": "Efecto de rastro con bolas texturizadas (sonrisa nítida)",
+                "type": "creativo",
+                "config": {"num_balls": 8},
+                "output": "image/jpeg"
             }
         ]
     }
