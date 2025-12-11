@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  cuda-service:
+    build: ./cuda-service
+    container_name: cuda_service
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    restart: always
+
+  api-java:
+    build: ./backend-java
+    container_name: api_java
+    ports:
+      - "8080:8080"
+    depends_on:
+      - cuda-service
+    restart: always
+
+networks:
+  default:
+    driver: bridge
