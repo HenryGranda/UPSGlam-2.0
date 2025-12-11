@@ -13,30 +13,28 @@ class FilterSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filters = [
-      {'id': 'gaussian', 'name': 'Gaussian', 'icon': Icons.blur_on},
-      {'id': 'box_blur', 'name': 'Box Blur', 'icon': Icons.blur_circular},
+      {'id': 'gaussian', 'name': 'Gauss', 'icon': Icons.blur_on},
+      {'id': 'box_blur', 'name': 'Blox Blur', 'icon': Icons.blur_circular},
       {'id': 'prewitt', 'name': 'Prewitt', 'icon': Icons.grid_on},
-      {'id': 'laplacian', 'name': 'Laplacian', 'icon': Icons.highlight},
-      {'id': 'ups_logo', 'name': 'UPS Logo', 'icon': Icons.school},
-      {'id': 'ups_color', 'name': 'UPS Color', 'icon': Icons.palette},
-      {'id': 'boomerang', 'name': 'Boomerang', 'icon': Icons.adjust},
+      {'id': 'laplacian', 'name': 'Laplace', 'icon': Icons.highlight},
+      {'id': 'ups_logo', 'name': 'UPS Logo', 'icon': Icons.shield},
+      {'id': 'boomerang', 'name': 'Boomerang', 'icon': Icons.auto_awesome},
+      {'id': 'caras', 'name': 'Caras', 'icon': Icons.face_retouching_natural},
     ];
 
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: filters.length,
-        itemBuilder: (context, index) {
-          final filter = filters[index];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 16,
+        runSpacing: 16,
+        children: filters.map((filter) {
           final isSelected = selectedFilter == filter['id'];
 
           return GestureDetector(
             onTap: () => onFilterSelected(filter['id'] as String),
             child: Container(
               width: 80,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -73,7 +71,7 @@ class FilterSelector extends StatelessWidget {
               ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }

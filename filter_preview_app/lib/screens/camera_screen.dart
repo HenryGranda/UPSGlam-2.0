@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image/image.dart' as img;
 import '../services/filter_service.dart';
 import '../widgets/filter_selector.dart';
 import '../widgets/processing_overlay.dart';
 import '../utils/local_filters.dart';
+import '../utils/preview_filters.dart';
 import 'result_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -24,8 +26,8 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isProcessing = false;
   String? _permissionError;
   Uint8List? _previewSnapshot;
-  Timer? _snapshotTimer;
-  bool _isUpdatingSnapshot = false;
+  bool _isProcessingFrame = false;
+  DateTime _lastFrameTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _initializeCamera() async {
     try {
+      await LocalFilters.ensureInitialized();
       _cameras = await availableCameras();
       if (_cameras!.isEmpty) {
         _showError('No se encontró ninguna cámara');
@@ -59,11 +62,13 @@ class _CameraScreenState extends State<CameraScreen> {
 
       _controller = CameraController(
         _cameras![0],
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
       );
 
       await _controller!.initialize();
+      await _controller!.setFlashMode(FlashMode.off);
+      await _startImageStream();
       
       if (mounted) {
         setState(() {
@@ -73,6 +78,107 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (e) {
       _showError('Error al inicializar la cámara: $e');
     }
+  }
+
+  Future<void> _startImageStream() async {
+    if (_controller == null || _controller!.value.isStreamingImages) return;
+    await _controller!.startImageStream(_processCameraImage);
+  }
+
+  Future<void> _stopImageStream() async {
+    if (_controller == null || !_controller!.value.isStreamingImages) return;
+    await _controller!.stopImageStream();
+  }
+
+  void _processCameraImage(CameraImage cameraImage) {
+    if (_isProcessing || _controller == null) return;
+    if (_selectedFilter == 'none' || _selectedFilter == 'caras') {
+      if (_previewSnapshot != null) {
+        setState(() {
+          _previewSnapshot = null;
+        });
+      }
+      return;
+    }
+    if (_isProcessingFrame) return;
+    final now = DateTime.now();
+    if (now.difference(_lastFrameTime).inMilliseconds < 120) {
+      return;
+    }
+    _lastFrameTime = now;
+
+    _isProcessingFrame = true;
+    final currentFilter = _selectedFilter;
+
+    try {
+      final img.Image rgb = _cameraImageToImage(cameraImage);
+      final img.Image? filtered = LocalFilters.applyFilterToImage(rgb, currentFilter);
+      if (!mounted || currentFilter != _selectedFilter) {
+        _isProcessingFrame = false;
+        return;
+      }
+      if (filtered != null) {
+        final bytes = Uint8List.fromList(img.encodeJpg(filtered, quality: 70));
+        if (mounted) {
+          setState(() {
+            _previewSnapshot = bytes;
+          });
+        }
+      }
+    } catch (e) {
+      // Ignorar errores de conversión individuales
+    } finally {
+      _isProcessingFrame = false;
+    }
+  }
+
+  img.Image _cameraImageToImage(CameraImage cameraImage) {
+    final width = cameraImage.width;
+    final height = cameraImage.height;
+    final img.Image image = img.Image(width: width, height: height);
+
+    if (cameraImage.format.group != ImageFormatGroup.yuv420) {
+      final plane = cameraImage.planes.first;
+      final bytes = plane.bytes;
+      int index = 0;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final r = bytes[index++];
+          final g = bytes[index++];
+          final b = bytes[index++];
+          image.setPixelRgba(x, y, r, g, b, 255);
+        }
+      }
+      return image;
+    }
+
+    final planeY = cameraImage.planes[0];
+    final planeU = cameraImage.planes[1];
+    final planeV = cameraImage.planes[2];
+    final bytesPerPixelUV = planeU.bytesPerPixel ?? 1;
+
+    for (int y = 0; y < height; y++) {
+      final uvRow = (y >> 1) * planeU.bytesPerRow;
+      final yRow = y * planeY.bytesPerRow;
+      for (int x = 0; x < width; x++) {
+        final uvIndex = uvRow + (x >> 1) * bytesPerPixelUV;
+        final yValue = planeY.bytes[yRow + x].toDouble();
+        final uValue = planeU.bytes[uvIndex].toDouble() - 128.0;
+        final vValue = planeV.bytes[uvIndex].toDouble() - 128.0;
+
+        int r = (yValue + 1.403 * vValue).round();
+        int g = (yValue - 0.344 * uValue - 0.714 * vValue).round();
+        int b = (yValue + 1.770 * uValue).round();
+
+        final rr = r.clamp(0, 255).toInt();
+        final gg = g.clamp(0, 255).toInt();
+        final bb = b.clamp(0, 255).toInt();
+
+        image.setPixelRgba(x, y, rr, gg, bb, 255);
+      }
+    }
+
+    return image;
   }
 
   void _showError(String message) {
@@ -86,66 +192,12 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  /// Actualiza snapshot con filtro procesado
-  Future<void> _updateFilterSnapshot() async {
-    if (_isUpdatingSnapshot || _controller == null || !_controller!.value.isInitialized) {
-      return;
-    }
-    
-    if (_selectedFilter == 'none') {
-      setState(() {
-        _previewSnapshot = null;
-      });
-      return;
-    }
-    
-    _isUpdatingSnapshot = true;
-    
-    try {
-      final image = await _controller!.takePicture();
-      final bytes = await image.readAsBytes();
-      
-      // Importar local_filters para procesamiento
-      final filtered = await LocalFilters.processImageBytes(bytes, _selectedFilter);
-      
-      if (mounted && filtered != null) {
-        setState(() {
-          _previewSnapshot = filtered;
-        });
-      }
-    } catch (e) {
-      print('Error updating snapshot: $e');
-    } finally {
-      _isUpdatingSnapshot = false;
-    }
-  }
-  
-  /// Inicia/detiene el timer de snapshots según el filtro
-  void _manageSnapshotTimer() {
-    _snapshotTimer?.cancel();
-    
-    if (_selectedFilter != 'none') {
-      // Actualizar inmediatamente
-      _updateFilterSnapshot();
-      
-      // Configurar timer para actualizar cada 500ms
-      _snapshotTimer = Timer.periodic(
-        const Duration(milliseconds: 500),
-        (_) => _updateFilterSnapshot(),
-      );
-    } else {
-      setState(() {
-        _previewSnapshot = null;
-      });
-    }
-  }
-  
   /// Se llama cuando cambia el filtro seleccionado
   void _onFilterChanged(String newFilter) {
     setState(() {
       _selectedFilter = newFilter;
+      _previewSnapshot = null;
     });
-    _manageSnapshotTimer();
   }
 
   Future<void> _captureAndProcess() async {
@@ -154,7 +206,7 @@ class _CameraScreenState extends State<CameraScreen> {
       return;
     }
 
-    if (_selectedFilter == 'none') {
+    if (_selectedFilter == 'none' || _selectedFilter == 'caras') {
       _showError('Por favor selecciona un filtro');
       return;
     }
@@ -163,7 +215,12 @@ class _CameraScreenState extends State<CameraScreen> {
       _isProcessing = true;
     });
 
+    final wasStreaming = _controller!.value.isStreamingImages;
+
     try {
+      if (wasStreaming) {
+        await _stopImageStream();
+      }
       // Capture original image
       final XFile image = await _controller!.takePicture();
       final Uint8List imageBytes = await image.readAsBytes();
@@ -191,6 +248,9 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (e) {
       _showError('Error al capturar la imagen: $e');
     } finally {
+      if (wasStreaming) {
+        await _startImageStream();
+      }
       if (mounted) {
         setState(() {
           _isProcessing = false;
@@ -201,7 +261,6 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    _snapshotTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -361,19 +420,27 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
     
-    // Sino, mostrar cámara normal
-    return CameraPreview(_controller!);
+    // Sino, mostrar cámara normal con filtro rápido visual
+    Widget preview = CameraPreview(_controller!);
+    final colorFilter = PreviewFilters.getPreviewColorFilter(_selectedFilter);
+    if (colorFilter != null) {
+      preview = ColorFiltered(
+        colorFilter: colorFilter,
+        child: preview,
+      );
+    }
+    return preview;
   }
 
   String _getFilterDisplayName(String filter) {
     const filterNames = {
-      'gaussian': 'Gaussian Blur',
-      'box_blur': 'Box Blur',
+      'gaussian': 'Gauss Blur',
+      'box_blur': 'Blox Blur',
       'prewitt': 'Prewitt (Bordes)',
-      'laplacian': 'Laplacian (Bordes)',
+      'laplacian': 'Laplace (Bordes)',
       'ups_logo': 'UPS Logo',
-      'ups_color': 'UPS Color',
       'boomerang': 'Boomerang',
+      'caras': 'Caras (Próx.)',
     };
     return filterNames[filter] ?? filter;
   }

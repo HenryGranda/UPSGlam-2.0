@@ -36,13 +36,6 @@ class PreviewFilters {
           BlendMode.screen,
         );
       
-      case 'ups_color':
-        // Tinte dorado más intenso
-        return ColorFilter.mode(
-          const Color(0xFFF2A900).withOpacity(0.4),
-          BlendMode.overlay,
-        );
-      
       case 'boomerang':
         // Aumentar saturación
         return const ColorFilter.matrix([
@@ -51,7 +44,13 @@ class PreviewFilters {
           0,   0,   1.4, 0, 0,
           0,   0,   0,   1, 0,
         ]);
-      
+      case 'caras':
+        // Placeholder: pequeño tinte neutro para indicar que está en desarrollo
+        return ColorFilter.mode(
+          Colors.white.withOpacity(0.1),
+          BlendMode.srcATop,
+        );
+
       default:
         return null;
     }

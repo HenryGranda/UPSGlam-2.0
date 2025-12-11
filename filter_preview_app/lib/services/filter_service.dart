@@ -69,8 +69,8 @@ class FilterService {
           'prewitt',
           'laplacian',
           'ups_logo',
-          'ups_color',
           'boomerang',
+          'caras',
         ];
       }
     } catch (e) {
