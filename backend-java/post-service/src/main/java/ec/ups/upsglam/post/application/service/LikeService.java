@@ -23,15 +23,16 @@ public class LikeService {
 
     private final LikeFirestoreRepository likeRepository;
     private final PostFirestoreRepository postRepository;
+    private final NotificationPublisher notificationPublisher;
 
     /**
      * Dar like a un post
      */
-    public Mono<LikeResponse> likePost(String postId, String userId) {
+    public Mono<LikeResponse> likePost(String postId, String userId, String username) {
         // Verificar que el post existe
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
-                .flatMap(post -> 
+                .flatMap(post ->
                     // Verificar si ya dio like
                     likeRepository.existsByUserIdAndPostId(postId, userId)
                         .flatMap(exists -> {
@@ -46,7 +47,19 @@ public class LikeService {
                             
                             return likeRepository.addLike(postId, userId)
                                     .then(postRepository.updateLikesCount(postId, 1))
-                                    .then(buildLikeResponse(postId, userId, true));
+                                    .then(buildLikeResponse(postId, userId, true))
+                                    .flatMap(res ->
+                                            notificationPublisher.notifyLike(
+                                                    post.getUserId(),
+                                                    userId,
+                                                    username,
+                                                    postId)
+                                                    .onErrorResume(e -> {
+                                                        log.error("No se pudo crear notificación de like", e);
+                                                        return Mono.empty();
+                                                    })
+                                                    .thenReturn(res)
+                                    );
                         })
                 )
                 .doOnSuccess(response -> log.info("Usuario {} dio like al post {}", userId, postId))

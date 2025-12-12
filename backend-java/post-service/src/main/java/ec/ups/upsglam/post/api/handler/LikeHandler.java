@@ -30,7 +30,7 @@ public class LikeHandler {
 
         log.info("User {} liking post {}", userId, postId);
 
-        return likeService.likePost(postId, userId)
+        return likeService.likePost(postId, userId, username)
                 .flatMap(likeResponse ->
                         ServerResponse.ok()
                                 .contentType(MediaType.APPLICATION_JSON)

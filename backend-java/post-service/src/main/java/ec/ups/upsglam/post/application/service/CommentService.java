@@ -6,6 +6,7 @@ import ec.ups.upsglam.post.domain.comment.dto.CommentsResponse;
 import ec.ups.upsglam.post.domain.exception.PostNotFoundException;
 import ec.ups.upsglam.post.domain.exception.UnauthorizedException;
 import ec.ups.upsglam.post.infrastructure.firestore.document.CommentDocument;
+import ec.ups.upsglam.post.application.service.NotificationPublisher;
 import ec.ups.upsglam.post.infrastructure.firestore.repository.CommentFirestoreRepository;
 import ec.ups.upsglam.post.infrastructure.firestore.repository.PostFirestoreRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class CommentService {
 
     private final CommentFirestoreRepository commentRepository;
     private final PostFirestoreRepository postRepository;
+    private final NotificationPublisher notificationPublisher;
 
     /**
      * Crear un comentario en un post
@@ -45,10 +47,20 @@ public class CommentService {
                             .build();
 
                     return commentRepository.save(postId, comment)
-                            .flatMap(savedComment -> 
-                                postRepository.updateCommentsCount(postId, 1)
-                                    .thenReturn(savedComment)
-                            );
+                            .flatMap(savedComment ->
+                                    postRepository.updateCommentsCount(postId, 1)
+                                            .thenReturn(savedComment))
+                            .flatMap(saved -> notificationPublisher.notifyComment(
+                                            post.getUserId(),
+                                            userId,
+                                            comment.getUsername(),
+                                            postId,
+                                            saved.getId())
+                                    .onErrorResume(e -> {
+                                        log.error("No se pudo crear notificación de comentario", e);
+                                        return Mono.empty();
+                                    })
+                                    .thenReturn(saved));
                 })
                 .map(this::toCommentResponse)
                 .doOnSuccess(c -> log.info("Comentario creado: {}", c.getId()));
