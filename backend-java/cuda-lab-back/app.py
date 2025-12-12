@@ -76,7 +76,7 @@ def convolve(req: ConvolutionRequest):
 
 @app.post("/filters/{filter_name}")
 async def apply_filter(
-    filter_name: str = Path(..., description="Filter name: prewitt, laplacian, gaussian, box_blur, ups_logo, ups_color, boomerang"),
+    filter_name: str = Path(..., description="Filter name: prewitt, laplacian, gaussian, box_blur, ups_logo, ups_color, boomerang, cr7"),
     request: Request = None
 ):
     """
@@ -100,6 +100,7 @@ async def apply_filter(
         - ups_logo: mask_size=5 (blur + UPS logo with aura effects)
         - ups_color: mask_size=1 (UPS color tint)
         - boomerang: trail effect with textured balls (crisp sonrisa.png texture)
+        - cr7: face mask overlay with face detection (applies mask over detected faces)
     
     Example:
         curl -X POST "http://localhost:5000/filters/gaussian" \\
@@ -119,10 +120,14 @@ async def apply_filter(
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty image body")
         
-        # Special handling for boomerang (uses custom implementation)
+        # Special handling for custom filters
         if filter_name == "boomerang":
             from filters.boomerang import apply_boomerang_bytes
             result_bytes = apply_boomerang_bytes(image_bytes, num_balls=8)
+            media_type = "image/jpeg"
+        elif filter_name == "cr7":
+            from filters.cr7 import apply_cr7_bytes
+            result_bytes = apply_cr7_bytes(image_bytes)
             media_type = "image/jpeg"
         else:
             # Process with filter (preset configurations)
@@ -210,6 +215,13 @@ async def list_filters():
                 "description": "Efecto de rastro con bolas texturizadas (sonrisa nítida)",
                 "type": "creativo",
                 "config": {"num_balls": 8},
+                "output": "image/jpeg"
+            },
+            {
+                "name": "cr7",
+                "description": "Máscara facial con detección de rostros (overlay sobre caras detectadas)",
+                "type": "creativo",
+                "config": {"scale_factor": 1.6},
                 "output": "image/jpeg"
             }
         ]
