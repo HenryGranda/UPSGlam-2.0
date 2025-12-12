@@ -21,4 +21,7 @@ public class UpdateProfileRequest {
     
     @Size(max = 150, message = "La bio no puede tener más de 150 caracteres")
     private String bio;
+
+    @Size(max = 100, message = "La URL de la foto no puede tener más de 100 caracteres")
+    private String photoUrl;
 }

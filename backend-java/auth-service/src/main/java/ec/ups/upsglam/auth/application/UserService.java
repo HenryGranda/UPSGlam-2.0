@@ -27,6 +27,13 @@ public class UserService {
      * Actualizar perfil de usuario
      */
     public Mono<UserResponse> updateProfile(String idToken, UpdateProfileRequest request) {
+        log.info(
+    "updateProfile() request => username={}, fullName={}, bio={}, photoUrl={}",
+            request.getUsername(),
+            request.getFullName(),
+            request.getBio(),
+            request.getPhotoUrl()
+        );
         return firebaseService.verifyToken(idToken)
                 .flatMap(uid -> {
                     // Si cambia username, verificar que no exista
@@ -47,10 +54,10 @@ public class UserService {
 
     /**
      * Actualizar datos del usuario
-     */
+    */
     private Mono<UserResponse> updateUserData(String uid, UpdateProfileRequest request) {
         Map<String, Object> updates = new HashMap<>();
-        
+
         if (request.getUsername() != null) {
             updates.put("username", request.getUsername());
         }
@@ -60,12 +67,20 @@ public class UserService {
         if (request.getBio() != null) {
             updates.put("bio", request.getBio());
         }
-        
+        // ESTO ES LO QUE FALTABA
+        if (request.getPhotoUrl() != null) {
+            updates.put("photoUrl", request.getPhotoUrl());
+        }
+
+        //  LOG para confirmar qué se va a Firestore
+        log.info("updateUserData() uid={} updates={}", uid, updates);
+
         if (updates.isEmpty()) {
+            // No hay nada que actualizar: devolvemos el usuario actual
             return firebaseService.getUserFromFirestore(uid)
                     .map(this::mapToUserResponse);
         }
-        
+
         return firebaseService.updateUserInFirestore(uid, updates)
                 .map(this::mapToUserResponse);
     }
