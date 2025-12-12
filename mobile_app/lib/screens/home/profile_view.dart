@@ -12,13 +12,22 @@ import 'ui_helpers.dart';
 /// Colores inspirados en el logo de la UPS
 const kUpsDarkBlue = Color.fromARGB(255, 1, 41, 79);
 const kUpsLightBlue = Color(0xFF4F8EC7);
-const kUpsYellow   = Color(0xFFF4C430);
+const kUpsYellow = Color(0xFFF4C430);
 
 class ProfileView extends StatelessWidget {
   final List<PostModel> posts;
   final CurrentUser? currentUser;
   final Future<void> Function()? onLogout;
   final Future<void> Function()? onProfileUpdated;
+  final Future<void> Function()? onRefresh;
+  final void Function(String postId)? onDeletePost;
+  final void Function(String postId, String newCaption)? onCaptionUpdated;
+  final String? viewerUsername;
+
+  // Para distinguir entre mi perfil y el de otros
+  final bool isMe;
+  final bool isFollowing;
+  final Future<void> Function()? onToggleFollow;
 
   const ProfileView({
     super.key,
@@ -26,19 +35,26 @@ class ProfileView extends StatelessWidget {
     this.currentUser,
     this.onLogout,
     this.onProfileUpdated,
+    this.onRefresh,
+    this.onDeletePost,
+    this.onCaptionUpdated,
+    this.viewerUsername,
+    this.isMe = true,
+    this.isFollowing = false,
+    this.onToggleFollow,
   });
 
   @override
   Widget build(BuildContext context) {
     final user = currentUser;
 
-    // USERNAME DINÁMICO
+    // USERNAME dinámico
     final username = formatUsername(user?.username);
 
-    // BIO DINÁMICA
+    // BIO dinámica
     final bio = (user?.bio != null && user!.bio!.trim().isNotEmpty)
         ? user.bio!
-        : 'Añade una biografía para que te conozcan mejor ✍️';
+        : 'Añade una biografía para que te conozcan mejor ✏️';
 
     // AVATAR
     final ImageProvider<Object> avatar;
@@ -65,7 +81,7 @@ class ProfileView extends StatelessWidget {
     }).toList();
 
     return Container(
-      color: const Color(0xFFF5F7FB), // fondo general clarito
+      color: const Color(0xFFF5F7FB),
       child: Column(
         children: [
           // HEADER con gradient UPS
@@ -83,6 +99,14 @@ class ProfileView extends StatelessWidget {
             ),
             child: Row(
               children: [
+                if (!isMe)
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  )
+                else
+                  const SizedBox(width: 48),
+
                 const Spacer(),
                 const Text(
                   'Perfil',
@@ -93,173 +117,219 @@ class ProfileView extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  onPressed: () => _openSettingsSheet(context),
-                  icon: const Icon(
-                    Icons.settings_outlined,
-                    color: kUpsYellow,
-                  ),
-                ),
+
+                if (isMe)
+                  IconButton(
+                    onPressed: () => _openSettingsSheet(context),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: kUpsYellow,
+                    ),
+                  )
+                else
+                  const SizedBox(width: 48),
               ],
             ),
           ),
 
           // CONTENIDO
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
+            child: RefreshIndicator(
+              onRefresh: onRefresh ?? () async {},
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
 
-                  // FOTO con aro de color
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [kUpsYellow, kUpsLightBlue],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                    // FOTO con aro de color
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [kUpsYellow, kUpsLightBlue],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundImage: avatar,
+                        backgroundColor: Colors.grey.shade200,
                       ),
                     ),
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundImage: avatar,
-                      backgroundColor: Colors.grey.shade200,
-                    ),
-                  ),
 
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // USERNAME
-                  Text(
-                    username,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: kUpsDarkBlue,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // BIO
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      bio,
-                      textAlign: TextAlign.center,
+                    // USERNAME
+                    Text(
+                      username,
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: kUpsDarkBlue,
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 4),
 
-                  // ESTADÍSTICAS
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _ProfileStat(
-                        label: 'Publicaciones',
-                        value: '${userPosts.length}',
-                      ),
-                      const _ProfileStat(label: 'Seguidores', value: '342'),
-                      const _ProfileStat(label: 'Siguiendo', value: '128'),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // TABS PUBLICACIONES / GUARDADAS con colorcito
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        top: BorderSide(color: Color(0xFFE5E7EB)),
-                        bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                    // BIO
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        bio,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: kUpsYellow,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Publicaciones',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: kUpsDarkBlue,
-                                ),
-                              ),
-                            ),
+
+                    const SizedBox(height: 12),
+
+                    // BOTÓN EDITAR PERFIL / SEGUIR
+                    if (isMe)
+                      FilledButton.tonal(
+                        onPressed: () => _openSettingsSheet(context),
+                        child: const Text('Editar perfil'),
+                      )
+                    else
+                      FilledButton(
+                        onPressed: onToggleFollow == null
+                            ? null
+                            : () => onToggleFollow!(),
+                        style: FilledButton.styleFrom(
+                          backgroundColor:
+                              isFollowing ? Colors.white : kUpsYellow,
+                          foregroundColor:
+                              isFollowing ? kUpsDarkBlue : Colors.black,
+                          side: isFollowing
+                              ? const BorderSide(color: kUpsDarkBlue)
+                              : BorderSide.none,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: const Center(
-                              child: Text(
-                                'Guardadas',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
+                        child: Text(isFollowing ? 'Siguiendo' : 'Seguir'),
+                      ),
+
+                    const SizedBox(height: 16),
+
+                    // ESTADISTICAS
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _ProfileStat(
+                          label: 'Publicaciones',
+                          value: '${userPosts.length}',
+                        ),
+                        _ProfileStat(
+                          label: 'Seguidores',
+                          value: '${user?.followersCount ?? 0}',
+                        ),
+                        _ProfileStat(
+                          label: 'Siguiendo',
+                          value: '${user?.followingCount ?? 0}',
                         ),
                       ],
                     ),
-                  ),
 
-                  // GRID DE POSTS DEL USUARIO
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(1),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 1,
-                      crossAxisSpacing: 1,
-                    ),
-                    itemCount: userPosts.length,
-                    itemBuilder: (_, index) {
-                      final post = userPosts[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PostDetailPage(
-                                post: post,
-                                currentUser: currentUser,
-                                onToggleLike: (_) {},
-                                onAddComment: (_, __) {},
+                    const SizedBox(height: 16),
+
+                    // TABS PUBLICACIONES / GUARDADAS con colorcito
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE5E7EB)),
+                          bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: kUpsYellow,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Publicaciones',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: kUpsDarkBlue,
+                                  ),
+                                ),
                               ),
                             ),
-                          );
-                        },
-                        child: Image(
-                          image: buildImageProvider(post.imageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                          ),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: const Center(
+                                child: Text(
+                                  'Guardadas',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // GRID DE POSTS DEL USUARIO
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(1),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 1,
+                        crossAxisSpacing: 1,
+                      ),
+                      itemCount: userPosts.length,
+                      itemBuilder: (_, index) {
+                        final post = userPosts[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PostDetailPage(
+                                  post: post,
+                                  currentUser: currentUser,
+                                  onToggleLike: (_) {},
+                                  onAddComment: (_, __) {},
+                                  onDeletePost: onDeletePost,
+                                  onCaptionUpdated: onCaptionUpdated,
+                                  viewerUsername: viewerUsername,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Image(
+                            image: buildImageProvider(post.imageUrl),
+                            fit: BoxFit.cover,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
