@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Objects;
 
 /**
  * Repositorio para la colección posts en Firestore
@@ -97,6 +98,115 @@ public class PostFirestoreRepository {
                 return Flux.error(new RuntimeException("Error obteniendo feed", e));
             }
         });
+    }
+
+    /**
+     * Obtiene posts de un usuario por userId o username
+     */
+    public Flux<PostDocument> findByUser(String userRef, int page, int size) {
+        return Flux.defer(() -> {
+            try {
+                // Cargamos todos los posts y filtramos en memoria (dataset reducido)
+                QuerySnapshot allSnapshot = firestore.collection(COLLECTION_NAME)
+                        .get()
+                        .get();
+
+                String refLower = userRef == null ? "" : userRef.trim().toLowerCase();
+
+                var documents = allSnapshot.getDocuments().stream()
+                        .filter(doc -> {
+                            String userId = doc.getString("userId");
+                            String username = doc.getString("username");
+
+                            boolean matchId = userId != null && userId.equals(refLower);
+                            boolean matchUsername = username != null && username.equalsIgnoreCase(refLower);
+
+                            // aceptar coincidencias de username con o sin prefijo @
+                            if (!matchUsername && username != null && username.startsWith("@")) {
+                                matchUsername = username.substring(1).equalsIgnoreCase(refLower);
+                            }
+
+                            return matchId || matchUsername;
+                        })
+                        .sorted((a, b) -> {
+                            Instant ta = safeInstant(a.get("createdAt"));
+                            Instant tb = safeInstant(b.get("createdAt"));
+                            if (ta == null && tb == null) return 0;
+                            if (ta == null) return 1;
+                            if (tb == null) return -1;
+                            return tb.compareTo(ta);
+                        })
+                        .skip((long) page * size)
+                        .limit(size)
+                        .toList();
+
+                return Flux.fromIterable(documents)
+                        .map(doc -> PostDocument.fromMap(doc.getId(), doc.getData()));
+            } catch (Exception e) {
+                log.error("Error obteniendo posts de usuario desde Firestore", e);
+                return Flux.error(new RuntimeException("Error obteniendo posts de usuario", e));
+            }
+        });
+    }
+
+    /**
+     * Cuenta posts de un usuario por userId o username
+     */
+    public Mono<Long> countByUser(String userRef) {
+        return Mono.fromCallable(() -> {
+            QuerySnapshot allSnapshot = firestore.collection(COLLECTION_NAME)
+                    .get()
+                    .get();
+
+            String refLower = userRef == null ? "" : userRef.trim().toLowerCase();
+
+            return allSnapshot.getDocuments().stream()
+                    .filter(doc -> {
+                        String userId = doc.getString("userId");
+                        String username = doc.getString("username");
+
+                        boolean matchId = userId != null && userId.equals(refLower);
+                        boolean matchUsername = username != null && username.equalsIgnoreCase(refLower);
+
+                        if (!matchUsername && username != null && username.startsWith("@")) {
+                            matchUsername = username.substring(1).equalsIgnoreCase(refLower);
+                        }
+
+                        return matchId || matchUsername;
+                    })
+                    .count();
+        });
+    }
+
+    /**
+     * Convierte el campo createdAt (que puede venir como Timestamp, Instant, Map o numero) a Instant
+     */
+    private Instant safeInstant(Object raw) {
+        try {
+            if (raw == null) return null;
+            if (raw instanceof com.google.cloud.Timestamp ts) {
+                return ts.toDate().toInstant();
+            }
+            if (raw instanceof Instant instant) {
+                return instant;
+            }
+            if (raw instanceof Number num) {
+                // epoch millis
+                return Instant.ofEpochMilli(num.longValue());
+            }
+            if (raw instanceof Map<?, ?> map) {
+                Object secObj = map.get("seconds");
+                if (secObj == null) secObj = map.get("_seconds");
+                Object nanoObj = map.get("nanos");
+                if (nanoObj == null) nanoObj = map.get("_nanoseconds");
+
+                long seconds = secObj instanceof Number ? ((Number) secObj).longValue() : 0L;
+                long nanos = nanoObj instanceof Number ? ((Number) nanoObj).longValue() : 0L;
+                return Instant.ofEpochSecond(seconds, nanos);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     /**

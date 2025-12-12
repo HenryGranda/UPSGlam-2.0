@@ -106,13 +106,36 @@ public class PostService {
     }
 
     /**
+     * Obtener posts de un usuario (acepta userId o username)
+     */
+    public Mono<FeedResponse> getUserPosts(String userRef, int page, int size, String currentUserId) {
+        return postRepository.findByUser(userRef, page, size)
+                .flatMap(post -> buildPostResponse(post, currentUserId))
+                .collectList()
+                .zipWith(postRepository.countByUser(userRef))
+                .map(tuple -> FeedResponse.builder()
+                        .posts(tuple.getT1())
+                        .page(page)
+                        .size(size)
+                        .totalItems(tuple.getT2())
+                        .hasMore((page + 1) * size < tuple.getT2())
+                        .build());
+    }
+
+    /**
      * Eliminar un post (solo el autor puede eliminarlo)
      */
-    public Mono<Void> deletePost(String postId, String userId) {
+    public Mono<Void> deletePost(String postId, String userId, String username) {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> {
-                    if (post.getUserId() == null || !post.getUserId().equals(userId)) {
+                    boolean matchesUserId = userId != null && post.getUserId() != null && post.getUserId().equals(userId);
+                    String reqUsername = normalizeUsername(username);
+                    String postUsername = normalizeUsername(post.getUsername());
+                    boolean matchesUsername = reqUsername != null && postUsername != null && reqUsername.equals(postUsername);
+                    boolean allow = matchesUserId || matchesUsername;
+
+                    if (!allow) {
                         return Mono.error(new UnauthorizedException("No tienes permiso para eliminar este post"));
                     }
                     
@@ -137,17 +160,31 @@ public class PostService {
     /**
      * Actualiza el caption de un post
      */
-    public Mono<Void> updateCaption(String postId, String newCaption, String userId) {
+    public Mono<Void> updateCaption(String postId, String newCaption, String userId, String username) {
         return postRepository.findById(postId)
                 .switchIfEmpty(Mono.error(new PostNotFoundException(postId)))
                 .flatMap(post -> {
-                    if (post.getUserId() == null || !post.getUserId().equals(userId)) {
+                    boolean matchesUserId = userId != null && post.getUserId() != null && post.getUserId().equals(userId);
+                    String reqUsername = normalizeUsername(username);
+                    String postUsername = normalizeUsername(post.getUsername());
+                    boolean matchesUsername = reqUsername != null && postUsername != null && reqUsername.equals(postUsername);
+                    boolean allow = matchesUserId || matchesUsername;
+                    if (!allow) {
                         return Mono.error(new UnauthorizedException("No tienes permiso para editar este post"));
                     }
                     return postRepository.updateCaption(postId, newCaption);
                 })
                 .doOnSuccess(v -> log.info("Caption actualizado para post: {}", postId))
                 .doOnError(e -> log.error("Error actualizando caption: {}", postId, e));
+    }
+
+    private String normalizeUsername(String raw) {
+        if (raw == null) return null;
+        String clean = raw.trim();
+        if (clean.startsWith("@")) {
+            clean = clean.substring(1);
+        }
+        return clean.isEmpty() ? null : clean;
     }
 
     /**

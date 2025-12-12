@@ -1,8 +1,7 @@
 package ec.ups.upsglam.post.api.handler;
 
-import ec.ups.upsglam.post.domain.post.dto.CreatePostRequest;
-import ec.ups.upsglam.post.domain.post.dto.FeedResponse;
 import ec.ups.upsglam.post.application.service.PostService;
+import ec.ups.upsglam.post.domain.post.dto.CreatePostRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +42,7 @@ public class PostHandler {
 
     /**
      * GET /posts/{postId}
-     * Obtiene detalle de un post específico
+     * Obtiene detalle de un post especifico
      */
     public Mono<ServerResponse> getPostById(ServerRequest request) {
         String postId = request.pathVariable("postId");
@@ -61,27 +60,21 @@ public class PostHandler {
     }
 
     /**
-     * GET /posts/user/{userId}
-     * Obtiene posts de un usuario específico
+     * GET /posts/user/{userIdOrUsername}
+     * Obtiene posts de un usuario (acepta userId o username)
      */
     public Mono<ServerResponse> getUserPosts(ServerRequest request) {
-        String targetUserId = request.pathVariable("userId");
+        String userRef = request.pathVariable("userId");
         int page = Integer.parseInt(request.queryParam("page").orElse("0"));
         int size = Integer.parseInt(request.queryParam("size").orElse("10"));
         String currentUserId = extractUserId(request);
 
-        log.info("Getting posts for user: {}, page: {}, size: {}", targetUserId, page, size);
+        log.info("Getting posts for userRef: {}, page: {}, size: {}, requester: {}", userRef, page, size, currentUserId);
 
-        // Por ahora retornamos feed vacío, este método requiere implementación adicional
-        return ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(FeedResponse.builder()
-                        .posts(java.util.Collections.emptyList())
-                        .hasMore(false)
-                        .page(page)
-                        .size(size)
-                        .totalItems(0L)
-                        .build())
+        return postService.getUserPosts(userRef, page, size, currentUserId)
+                .flatMap(feed -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(feed))
                 .onErrorResume(this::handleError);
     }
 
@@ -91,7 +84,6 @@ public class PostHandler {
      */
     public Mono<ServerResponse> createPost(ServerRequest request) {
         String userId = extractUserId(request);
-        String username = extractUsername(request);
 
         log.info("Creating post for user: {}", userId);
 
@@ -107,28 +99,30 @@ public class PostHandler {
 
     /**
      * DELETE /posts/{postId}
-     * Elimina un post (solo el dueño)
+     * Elimina un post (solo el dueno)
      */
     public Mono<ServerResponse> deletePost(ServerRequest request) {
         String postId = request.pathVariable("postId");
         String userId = extractUserId(request);
+        String username = extractUsername(request);
 
-        log.info("Deleting post: {}, userId: {}", postId, userId);
+        log.info("Deleting post: {}, userId: {}, username: {}", postId, userId, username);
 
-        return postService.deletePost(postId, userId)
+        return postService.deletePost(postId, userId, username)
                 .then(ServerResponse.noContent().build())
                 .onErrorResume(this::handleError);
     }
 
     /**
      * PATCH /posts/{postId}/caption
-     * Actualiza la descripción de un post
+     * Actualiza la descripcion de un post
      */
     public Mono<ServerResponse> updateCaption(ServerRequest request) {
         String postId = request.pathVariable("postId");
         String userId = extractUserId(request);
+        String username = extractUsername(request);
 
-        log.info("Updating caption for post: {}, userId: {}", postId, userId);
+        log.info("Updating caption for post: {}, userId: {}, username: {}", postId, userId, username);
 
         return request.bodyToMono(Map.class)
                 .flatMap(body -> {
@@ -137,7 +131,7 @@ public class PostHandler {
                         return ServerResponse.badRequest()
                                 .bodyValue(Map.of("error", "BAD_REQUEST", "message", "Caption es requerido"));
                     }
-                    return postService.updateCaption(postId, newCaption, userId)
+                    return postService.updateCaption(postId, newCaption, userId, username)
                             .then(ServerResponse.ok()
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .bodyValue(Map.of("message", "Caption actualizado exitosamente")));
@@ -166,6 +160,14 @@ public class PostHandler {
      */
     private Mono<ServerResponse> handleError(Throwable error) {
         log.error("Error in PostHandler: ", error);
+        if (error instanceof ec.ups.upsglam.post.domain.exception.UnauthorizedException) {
+            return ServerResponse.status(403)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Map.of(
+                            "error", "FORBIDDEN",
+                            "message", error.getMessage()
+                    ));
+        }
         return ServerResponse.status(500)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Map.of(
