@@ -80,6 +80,22 @@ spring:
             - Method=GET
           filters:
             - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+
+        # Notifications + FCM token
+        - id: auth-service-notifications
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+
+        - id: auth-service-fcm-token
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/users/me/fcm-token
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         # ===============================
         # POST SERVICE ROUTES (Docker)
