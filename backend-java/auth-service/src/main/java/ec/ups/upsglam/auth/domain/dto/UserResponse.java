@@ -21,4 +21,6 @@ public class UserResponse {
     private String bio;
     private Long followersCount;
     private Long followingCount;
+    private Boolean isMe;
+    private Boolean isFollowing;
 }

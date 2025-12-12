@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Servicio de gestión de perfil de usuario
+ * Servicio de gestion de perfil de usuario
  */
 @Service
 @RequiredArgsConstructor
@@ -28,15 +28,14 @@ public class UserService {
      */
     public Mono<UserResponse> updateProfile(String idToken, UpdateProfileRequest request) {
         log.info(
-    "updateProfile() request => username={}, fullName={}, bio={}, photoUrl={}",
-            request.getUsername(),
-            request.getFullName(),
-            request.getBio(),
-            request.getPhotoUrl()
+                "updateProfile() request => username={}, fullName={}, bio={}, photoUrl={}",
+                request.getUsername(),
+                request.getFullName(),
+                request.getBio(),
+                request.getPhotoUrl()
         );
         return firebaseService.verifyToken(idToken)
                 .flatMap(uid -> {
-                    // Si cambia username, verificar que no exista
                     if (request.getUsername() != null) {
                         return firebaseService.usernameExists(request.getUsername())
                                 .flatMap(exists -> {
@@ -54,7 +53,7 @@ public class UserService {
 
     /**
      * Actualizar datos del usuario
-    */
+     */
     private Mono<UserResponse> updateUserData(String uid, UpdateProfileRequest request) {
         Map<String, Object> updates = new HashMap<>();
 
@@ -67,28 +66,54 @@ public class UserService {
         if (request.getBio() != null) {
             updates.put("bio", request.getBio());
         }
-        // ESTO ES LO QUE FALTABA
         if (request.getPhotoUrl() != null) {
             updates.put("photoUrl", request.getPhotoUrl());
         }
 
-        //  LOG para confirmar qué se va a Firestore
         log.info("updateUserData() uid={} updates={}", uid, updates);
 
         if (updates.isEmpty()) {
-            // No hay nada que actualizar: devolvemos el usuario actual
             return firebaseService.getUserFromFirestore(uid)
-                    .map(this::mapToUserResponse);
+                    .map(user -> mapToUserResponse(user, true, false));
         }
 
         return firebaseService.updateUserInFirestore(uid, updates)
-                .map(this::mapToUserResponse);
+                .map(user -> mapToUserResponse(user, true, false));
+    }
+
+    /**
+     * Obtener perfil publico por username, calculando si el solicitante lo sigue
+     */
+    public Mono<UserResponse> getUserByUsername(String username, String requesterToken) {
+        Mono<String> requesterIdMono = Mono.justOrEmpty(requesterToken)
+                .flatMap(firebaseService::verifyToken);
+
+        return firebaseService.getUserByUsername(username)
+                .flatMap(targetUser -> requesterIdMono
+                        .switchIfEmpty(Mono.just(""))
+                        .flatMap(requesterId -> {
+                            boolean isMe = !requesterId.isBlank() && requesterId.equals(targetUser.getId());
+                            Mono<Boolean> isFollowingMono = (!requesterId.isBlank() && !isMe)
+                                    ? firebaseService.isFollowing(requesterId, targetUser.getId())
+                                    : Mono.just(false);
+
+                            return isFollowingMono
+                                    .defaultIfEmpty(false)
+                                    .map(isFollowing -> mapToUserResponse(targetUser, isMe, isFollowing));
+                        })
+                )
+                .doOnSuccess(u -> log.info("Perfil publico cargado: {}", username))
+                .doOnError(e -> log.error("Error perfil publico {}", username, e));
     }
 
     /**
      * Mapear User a UserResponse
      */
     private UserResponse mapToUserResponse(User user) {
+        return mapToUserResponse(user, false, false);
+    }
+
+    private UserResponse mapToUserResponse(User user, boolean isMe, boolean isFollowing) {
         return UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -98,6 +123,8 @@ public class UserService {
                 .bio(user.getBio())
                 .followersCount(user.getFollowersCount())
                 .followingCount(user.getFollowingCount())
+                .isMe(isMe)
+                .isFollowing(isFollowing)
                 .build();
     }
 }

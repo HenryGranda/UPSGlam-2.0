@@ -15,10 +15,13 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 @Configuration
 public class UserRouter {
 
-    @Bean
-    public RouterFunction<ServerResponse> userRoutes(UserHandler handler) {
-        return RouterFunctions.route()
-                .PATCH("/users/me", handler::updateProfile)
-                .build();
-    }
+        @Bean
+        public RouterFunction<ServerResponse> userRoutes(UserHandler handler) {
+            return RouterFunctions.route()
+                    .PATCH("/users/me", handler::updateProfile)
+
+                    .GET("/users/{username}", handler::getUserByUsername)
+
+                    .build();
+        }
 }

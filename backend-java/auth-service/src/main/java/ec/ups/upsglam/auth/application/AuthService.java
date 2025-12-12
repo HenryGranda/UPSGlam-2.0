@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -31,73 +30,63 @@ public class AuthService {
     public Mono<AuthResponse> register(RegisterRequest request) {
         log.info("Registrando usuario: {}", request.getEmail());
 
-        // 1. Verificar que el username no exista
         return firebaseService.usernameExists(request.getUsername())
                 .flatMap(exists -> {
                     if (exists) {
                         return Mono.error(new UsernameAlreadyInUseException(request.getUsername()));
                     }
-                    
-                    // 2. Crear usuario en Firebase Auth
-                    return firebaseService.createAuthUser(request.getEmail(), request.getPassword());
-                })
-                .flatMap(userRecord -> {
-                    // 3. Guardar datos adicionales en Firestore
-                    return firebaseService.saveUserToFirestore(
-                            userRecord.getUid(),
+                    return firebaseService.createAuthUser(
                             request.getEmail(),
-                            request.getUsername(),
-                            request.getFullName()
-                    ).map(user -> Map.entry(userRecord, user));
+                            request.getPassword()
+                    );
                 })
-                .flatMap(entry -> {
-                    UserRecord userRecord = entry.getKey();
-                    User user = entry.getValue();
-                    
-                    // 4. Crear token personalizado
-                    return firebaseService.createCustomToken(userRecord.getUid())
-                            .map(token -> buildAuthResponse(user, token));
-                })
-                .doOnSuccess(response -> log.info("Usuario registrado exitosamente: {}", request.getUsername()))
-                .doOnError(error -> log.error("Error registrando usuario", error));
+                .flatMap(userRecord ->
+                        firebaseService.saveUserToFirestore(
+                                userRecord.getUid(),
+                                request.getEmail(),
+                                request.getUsername(),
+                                request.getFullName()
+                        ).map(user -> Map.entry(userRecord, user))
+                )
+                .flatMap(entry ->
+                        firebaseService.createCustomToken(entry.getKey().getUid())
+                                .map(token -> buildAuthResponse(entry.getValue(), token))
+                )
+                .doOnSuccess(r -> log.info("Usuario registrado: {}", request.getUsername()))
+                .doOnError(e -> log.error("Error registrando usuario", e));
     }
 
     /**
      * Login de usuario
-     * Usa la REST API de Firebase para autenticar y obtener un ID Token real
      */
     public Mono<AuthResponse> login(LoginRequest request) {
         log.info("Intentando login: {}", request.getIdentifier());
 
-        // Determinar si es email o username
-        return (isEmail(request.getIdentifier()) 
+        return (isEmail(request.getIdentifier())
                 ? Mono.just(request.getIdentifier())
                 : firebaseService.getUserByUsername(request.getIdentifier())
                         .map(User::getEmail))
-                .flatMap(email -> 
-                    // Autenticar con Firebase usando REST API (obtiene ID Token real)
-                    firebaseAuthRestClient.signInWithPassword(email, request.getPassword())
-                            .flatMap(authResponse -> 
-                                // Obtener usuario de Firestore
-                                firebaseService.getUserFromFirestore(authResponse.getLocalId())
-                                        .map(user -> AuthResponse.builder()
-                                                .user(mapToUserResponse(user))
-                                                .token(TokenResponse.builder()
-                                                        .idToken(authResponse.getIdToken())
-                                                        .refreshToken(authResponse.getRefreshToken())
-                                                        .expiresIn(Long.parseLong(authResponse.getExpiresIn()))
-                                                        .build())
-                                                .build())
-                            )
+                .flatMap(email ->
+                        firebaseAuthRestClient
+                                .signInWithPassword(email, request.getPassword())
+                                .flatMap(authResponse ->
+                                        firebaseService
+                                                .getUserFromFirestore(authResponse.getLocalId())
+                                                .map(user ->
+                                                        AuthResponse.builder()
+                                                                .user(mapToUserResponse(user))
+                                                                .token(TokenResponse.builder()
+                                                                        .idToken(authResponse.getIdToken())
+                                                                        .refreshToken(authResponse.getRefreshToken())
+                                                                        .expiresIn(Long.parseLong(authResponse.getExpiresIn()))
+                                                                        .build()
+                                                                )
+                                                                .build()
+                                                )
+                                )
                 )
-                .doOnSuccess(response -> log.info("Login exitoso: {}", request.getIdentifier()))
-                .doOnError(error -> log.error("Error en login", error))
-                .onErrorMap(e -> {
-                    if (e instanceof UserNotFoundException) {
-                        return new InvalidCredentialsException();
-                    }
-                    return new InvalidCredentialsException();
-                });
+                .doOnSuccess(r -> log.info("Login exitoso"))
+                .onErrorMap(e -> new InvalidCredentialsException());
     }
 
     /**
@@ -107,27 +96,24 @@ public class AuthService {
         return firebaseService.verifyToken(idToken)
                 .flatMap(firebaseService::getUserFromFirestore)
                 .map(this::mapToUserResponse)
-                .doOnSuccess(user -> log.info("Perfil obtenido: {}", user.getUsername()))
-                .doOnError(error -> log.error("Error obteniendo perfil", error));
+                .doOnSuccess(u -> log.info("Perfil cargado: {}", u.getUsername()));
     }
 
     /**
-     * Construir respuesta de autenticación
+     * Construir AuthResponse
      */
-    private AuthResponse buildAuthResponse(User user, String customToken) {
+    private AuthResponse buildAuthResponse(User user, String token) {
         return AuthResponse.builder()
                 .user(mapToUserResponse(user))
                 .token(TokenResponse.builder()
-                        .idToken(customToken)
-                        .refreshToken(null)  // Firebase maneja refresh automáticamente
+                        .idToken(token)
+                        .refreshToken(null)
                         .expiresIn(3600L)
                         .build())
                 .build();
     }
 
-    /**
-     * Mapear User a UserResponse
-     */
+
     private UserResponse mapToUserResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -136,12 +122,13 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .photoUrl(user.getPhotoUrl())
                 .bio(user.getBio())
+                .followersCount(user.getFollowersCount())
+                .followingCount(user.getFollowingCount())
+                .isMe(true)
+                .isFollowing(false)
                 .build();
     }
 
-    /**
-     * Verificar si es email
-     */
     private boolean isEmail(String identifier) {
         return identifier.contains("@");
     }

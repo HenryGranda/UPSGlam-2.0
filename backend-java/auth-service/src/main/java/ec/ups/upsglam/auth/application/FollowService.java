@@ -4,7 +4,6 @@ import ec.ups.upsglam.auth.domain.dto.FollowResponse;
 import ec.ups.upsglam.auth.domain.dto.FollowStatsResponse;
 import ec.ups.upsglam.auth.domain.dto.UserResponse;
 import ec.ups.upsglam.auth.domain.exception.AlreadyFollowingException;
-import ec.ups.upsglam.auth.domain.model.User;
 import ec.ups.upsglam.auth.infrastructure.firebase.FirebaseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,29 +28,32 @@ public class FollowService {
      */
     public Mono<FollowResponse> followUser(String idToken, String targetUserId) {
         return firebaseService.verifyToken(idToken)
-                .flatMap(currentUserId -> {
-                    // Verificar si ya lo sigue
-                    return firebaseService.isFollowing(currentUserId, targetUserId)
-                            .flatMap(isFollowing -> {
+                .flatMap(currentUserId ->
+                        firebaseService.isFollowing(currentUserId, targetUserId)
+                                .flatMap(isFollowing -> {
+                                // ✅ Si ya lo sigue, NO es error (idempotente)
                                 if (isFollowing) {
-                                    return Mono.error(new AlreadyFollowingException(targetUserId));
+                                        return firebaseService.getFollowersCount(targetUserId)
+                                                .map(count -> FollowResponse.builder()
+                                                        .success(true)
+                                                        .message("Ya sigues a este usuario")
+                                                        .isFollowing(true)
+                                                        .followersCount(count)
+                                                        .build());
                                 }
-                                
-                                // Crear el follow
+
+                                // ✅ Si no lo sigue, crear follow
                                 return firebaseService.createFollow(currentUserId, targetUserId)
-                                        .flatMap(follow -> {
-                                            // Obtener el nuevo conteo de followers
-                                            return firebaseService.getFollowersCount(targetUserId)
-                                                    .map(count -> FollowResponse.builder()
-                                                            .success(true)
-                                                            .message("Ahora sigues a este usuario")
-                                                            .isFollowing(true)
-                                                            .followersCount(count)
-                                                            .build());
-                                        });
-                            });
-                })
-                .doOnSuccess(response -> log.info("Follow exitoso"))
+                                        .then(firebaseService.getFollowersCount(targetUserId))
+                                        .map(count -> FollowResponse.builder()
+                                                .success(true)
+                                                .message("Ahora sigues a este usuario")
+                                                .isFollowing(true)
+                                                .followersCount(count)
+                                                .build());
+                                })
+                )
+                .doOnSuccess(response -> log.info("Follow OK: {}", response.getMessage()))
                 .doOnError(error -> log.error("Error al seguir usuario", error));
     }
 
@@ -150,16 +152,31 @@ public class FollowService {
     /**
      * Mapear User a UserResponse
      */
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .username(user.getUsername())
-                .fullName(user.getFullName())
-                .photoUrl(user.getPhotoUrl())
-                .bio(user.getBio())
-                .followersCount(user.getFollowersCount())
-                .followingCount(user.getFollowingCount())
-                .build();
-    }
+      @SuppressWarnings("unchecked")
+      private UserResponse mapToUserResponse(Object raw) {
+
+        if (raw instanceof java.util.Map<?, ?> map) {
+                return UserResponse.builder()
+                        .id(String.valueOf(map.get("id")))
+                        .email(map.get("email") != null ? map.get("email").toString() : "")
+                        .username(map.get("username") != null ? map.get("username").toString() : "")
+                        .fullName(map.get("fullName") != null ? map.get("fullName").toString() : "")
+                        .photoUrl(map.get("photoUrl") != null ? map.get("photoUrl").toString() : null)
+                        .bio(map.get("bio") != null ? map.get("bio").toString() : null)
+                        .followersCount(
+                        map.get("followersCount") instanceof Number
+                                ? ((Number) map.get("followersCount")).longValue()
+                                : 0L
+                        )
+                        .followingCount(
+                        map.get("followingCount") instanceof Number
+                                ? ((Number) map.get("followingCount")).longValue()
+                                : 0L
+                        )
+                        .build();
+        }
+
+        throw new IllegalArgumentException("Formato de usuario no soportado: " + raw);
+        }
+
 }
