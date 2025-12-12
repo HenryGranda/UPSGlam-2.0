@@ -5,3 +5,4 @@ opencv-python-headless
 pycuda
 imageio
 python-multipart
+pillow

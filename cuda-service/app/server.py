@@ -14,7 +14,7 @@ from filters.laplacian.laplacian import apply_laplacian
 from filters.gauss.gauss import apply_gaussian
 from filters.prewitt.prewitt import apply_prewitt
 from filters.blox_blur.blox_blur import apply_blox
-
+from filters.caras import apply_face_mask
 
 # ============================================================
 #  CONFIGURACIÓN FASTAPI
@@ -138,6 +138,17 @@ async def filter_blox(file: UploadFile = File(...)):
     cv2.imwrite(out_name, output)
 
     return {"png_path": out_name}
+
+# ------------------------------------------------------------
+# 7) FACE MASK (CUDA) - MÁSCARA EN LA CARA
+# ------------------------------------------------------------
+@app.post("/filter/face-mask")
+async def filter_face_mask(file: UploadFile = File(...)):
+    img = read_image(file)
+
+    _, out_path = apply_face_mask(img)
+
+    return {"png_path": out_path}
 
 
 # ============================================================
