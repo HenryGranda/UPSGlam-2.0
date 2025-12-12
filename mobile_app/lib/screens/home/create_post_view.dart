@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/current_user.dart';
 import '../../models/post_model.dart';
 import '../../services/post_service.dart';
+import 'live_preview_panel.dart';
 
 class CreatePostView extends StatefulWidget {
   final void Function(PostModel) onPublish;
@@ -161,11 +162,7 @@ class _CreatePostViewState extends State<CreatePostView> {
                   AspectRatio(
                     aspectRatio: 3 / 4,
                     child: _previewEnabled
-                        ? _PreviewModePanel(onDisable: () {
-                            setState(() {
-                              _previewEnabled = false;
-                            });
-                          })
+                        ? LivePreviewPanel(filterId: _selectedFilter)
                         : Container(
                             decoration: BoxDecoration(
                               color: Colors.grey[200],
@@ -322,59 +319,6 @@ class _CreatePostViewState extends State<CreatePostView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PreviewModePanel extends StatelessWidget {
-  final VoidCallback onDisable;
-
-  const _PreviewModePanel({required this.onDisable});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1F1F1F), Color(0xFF3A3A3A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Icon(Icons.visibility, color: Colors.white, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Previsualización Activada',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Utiliza la app de previsualización para ver el filtro en vivo. '
-              'Desactiva este modo para capturar la foto y enviarla al backend.',
-              style: TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton(
-              onPressed: onDisable,
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
-              child: const Text('Desactivar previsualización'),
-            ),
-          ],
-        ),
       ),
     );
   }

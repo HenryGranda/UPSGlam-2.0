@@ -22,17 +22,9 @@ class LocalFilters {
   static Future<void> ensureInitialized() async {
     if (_assetsLoaded) return;
     try {
-      final data = await rootBundle.load('assets/sonrisa.png');
-      final bytes = data.buffer.asUint8List();
-      _sonrisaTexture = img.decodeImage(bytes);
-
-      final overlayData = await rootBundle.load('assets/filtro_don_bosco.png');
-      final overlayBytes = overlayData.buffer.asUint8List();
-      _upsOverlayTexture = img.decodeImage(overlayBytes);
-
-      final faceMaskData = await rootBundle.load('assets/face_mask.png');
-      final faceMaskBytes = faceMaskData.buffer.asUint8List();
-      _faceMaskTexture = img.decodeImage(faceMaskBytes);
+      _sonrisaTexture = await _loadAssetImage('sonrisa.png');
+      _upsOverlayTexture = await _loadAssetImage('filtro_don_bosco.png');
+      _faceMaskTexture = await _loadAssetImage('face_mask.png');
     } catch (_) {
       _sonrisaTexture = null;
       _upsOverlayTexture = null;
@@ -717,4 +709,19 @@ class _BoomerangBall {
     required this.vx,
     required this.vy,
   });
+}
+
+Future<img.Image?> _loadAssetImage(String fileName) async {
+  Future<img.Image?> decode(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      final bytes = data.buffer.asUint8List();
+      return img.decodeImage(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  return await decode('assets/$fileName') ??
+      await decode('packages/filter_preview_app/assets/$fileName');
 }
