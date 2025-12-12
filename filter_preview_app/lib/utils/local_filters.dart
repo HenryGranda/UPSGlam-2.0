@@ -9,6 +9,7 @@ class LocalFilters {
   static bool _assetsLoaded = false;
   static img.Image? _sonrisaTexture;
   static img.Image? _upsOverlayTexture;
+  static img.Image? _faceMaskTexture;
   static final Map<int, img.Image> _resizedTextureCache = {};
   static final Map<String, img.Image> _upsOverlayCache = {};
   static final List<_BoomerangBall> _boomerangBalls = [];
@@ -28,9 +29,14 @@ class LocalFilters {
       final overlayData = await rootBundle.load('assets/filtro_don_bosco.png');
       final overlayBytes = overlayData.buffer.asUint8List();
       _upsOverlayTexture = img.decodeImage(overlayBytes);
+
+      final faceMaskData = await rootBundle.load('assets/face_mask.png');
+      final faceMaskBytes = faceMaskData.buffer.asUint8List();
+      _faceMaskTexture = img.decodeImage(faceMaskBytes);
     } catch (_) {
       _sonrisaTexture = null;
       _upsOverlayTexture = null;
+      _faceMaskTexture = null;
     } finally {
       _assetsLoaded = true;
     }
@@ -412,6 +418,41 @@ class LocalFilters {
     return result;
   }
 
+  /// Aplica overlay de máscara facial simple para previsualización
+  static img.Image applyFaceMask(img.Image image) {
+    final mask = _faceMaskTexture;
+    if (mask == null) {
+      return image;
+    }
+
+    final result = img.Image.from(image);
+    final targetWidth = (result.width * 0.6).clamp(12.0, result.width.toDouble());
+    final aspect = mask.height / mask.width;
+    final targetHeight =
+        (targetWidth * aspect).clamp(8.0, result.height.toDouble());
+    double dstX = (result.width - targetWidth) / 2;
+    double dstY = result.height * 0.18;
+    dstX = dstX.clamp(0.0, result.width - targetWidth);
+    dstY = dstY.clamp(0.0, result.height - targetHeight);
+
+    final resizedMask = img.copyResize(
+      mask,
+      width: targetWidth.round(),
+      height: targetHeight.round(),
+      interpolation: img.Interpolation.cubic,
+    );
+
+    img.compositeImage(
+      result,
+      resizedMask,
+      dstX: dstX.round(),
+      dstY: dstY.round(),
+      blend: img.BlendMode.alpha,
+    );
+
+    return result;
+  }
+
   static img.Image? _getOrbTexture(double radius) {
     final size = (radius * 2).round().clamp(4, 512);
     if (_resizedTextureCache.containsKey(size)) {
@@ -583,7 +624,7 @@ class LocalFilters {
 
   /// Procesa imagen ya decodificada
   static img.Image? applyFilterToImage(img.Image image, String filterId) {
-    if (filterId == 'none' || filterId == 'caras') return null;
+    if (filterId == 'none') return null;
 
     img.Image working = image;
 
@@ -600,7 +641,9 @@ class LocalFilters {
       if (working.width > maxWidthBlur) {
         working = img.copyResize(working, width: maxWidthBlur);
       }
-    } else if (filterId == 'ups_logo' || filterId == 'boomerang') {
+    } else if (filterId == 'ups_logo' ||
+        filterId == 'boomerang' ||
+        filterId == 'caras') {
       if (working.width > maxWidthFx) {
         working = img.copyResize(working, width: maxWidthFx);
       }
@@ -619,6 +662,8 @@ class LocalFilters {
         return applyUpsLogo(working);
       case 'boomerang':
         return applyBoomerang(working);
+      case 'caras':
+        return applyFaceMask(working);
       default:
         return null;
     }
@@ -629,7 +674,7 @@ class LocalFilters {
     Uint8List bytes,
     String filterId,
   ) async {
-    if (filterId == 'none' || filterId == 'caras') return null;
+    if (filterId == 'none') return null;
 
     try {
       await ensureInitialized();
@@ -655,7 +700,7 @@ class LocalFilters {
       'laplacian': 'Laplace (Bordes)',
       'ups_logo': 'UPS Logo',
       'boomerang': 'Boomerang',
-      'caras': 'Caras (Próx.)',
+      'caras': 'Caras',
     };
     return filterNames[filter] ?? filter;
   }

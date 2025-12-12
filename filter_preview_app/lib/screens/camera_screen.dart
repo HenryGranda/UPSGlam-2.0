@@ -92,7 +92,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   void _processCameraImage(CameraImage cameraImage) {
     if (_isProcessing || _controller == null) return;
-    if (_selectedFilter == 'none' || _selectedFilter == 'caras') {
+    if (_selectedFilter == 'none') {
       if (_previewSnapshot != null) {
         setState(() {
           _previewSnapshot = null;
@@ -236,7 +236,7 @@ class _CameraScreenState extends State<CameraScreen> {
       return;
     }
 
-    if (_selectedFilter == 'none' || _selectedFilter == 'caras') {
+    if (_selectedFilter == 'none') {
       _showError('Por favor selecciona un filtro');
       return;
     }
@@ -487,7 +487,7 @@ class _CameraScreenState extends State<CameraScreen> {
       'laplacian': 'Laplace (Bordes)',
       'ups_logo': 'UPS Logo',
       'boomerang': 'Boomerang',
-      'caras': 'Caras (Próx.)',
+      'caras': 'Caras',
     };
     return filterNames[filter] ?? filter;
   }
