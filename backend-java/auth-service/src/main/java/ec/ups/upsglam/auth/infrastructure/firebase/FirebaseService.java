@@ -33,6 +33,7 @@ public class FirebaseService {
     
     private static final String USERS_COLLECTION = "users";
     private static final String FOLLOWS_COLLECTION = "follows";
+    private static final java.util.Random RANDOM = new java.util.Random();
 
     /**
      * Crear usuario en Firebase Auth
@@ -150,6 +151,55 @@ public class FirebaseService {
                 throw new RuntimeException("Error obteniendo usuario");
             }
         }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Obtener usuario; si no existe en Firestore (login social primera vez), lo crea usando Firebase Auth.
+     */
+    public Mono<User> getOrCreateUser(String uid) {
+        return getUserFromFirestore(uid)
+                .onErrorResume(UserNotFoundException.class, e -> Mono.fromCallable(() -> {
+                    try {
+                        UserRecord record = firebaseAuth.getUser(uid);
+                        String email = record.getEmail();
+                        String fullName = record.getDisplayName();
+                        String photoUrl = record.getPhotoUrl();
+
+                        String username = generateUniqueUsername(email, uid);
+
+                        Map<String, Object> userData = new HashMap<>();
+                        userData.put("email", email);
+                        userData.put("username", username);
+                        userData.put("fullName", fullName);
+                        userData.put("photoUrl", photoUrl);
+                        userData.put("bio", null);
+                        userData.put("createdAt", System.currentTimeMillis());
+                        userData.put("followersCount", 0L);
+                        userData.put("followingCount", 0L);
+
+                        firestore.collection(USERS_COLLECTION)
+                                .document(uid)
+                                .set(userData)
+                                .get();
+
+                        log.info("Perfil creado en Firestore para uid={} (login social)", uid);
+
+                        return User.builder()
+                                .id(uid)
+                                .email(email)
+                                .username(username)
+                                .fullName(fullName)
+                                .photoUrl(photoUrl)
+                                .bio(null)
+                                .createdAt((Long) userData.get("createdAt"))
+                                .followersCount(0L)
+                                .followingCount(0L)
+                                .build();
+                    } catch (Exception ex) {
+                        log.error("Error creando perfil para uid={} desde Firebase Auth", uid, ex);
+                        throw new RuntimeException("Error creando perfil para usuario social");
+                    }
+                }).subscribeOn(Schedulers.boundedElastic()));
     }
 
     /**
@@ -481,6 +531,44 @@ public class FirebaseService {
         } catch (InterruptedException | ExecutionException e) {
             return false;
         }
+    }
+
+    /**
+     * Verificar si un username existe (llamada síncrona para generación automática).
+     */
+    private boolean usernameExistsSync(String username) {
+        try {
+            var query = firestore.collection(USERS_COLLECTION)
+                    .whereEqualTo("username", username)
+                    .limit(1)
+                    .get()
+                    .get();
+            return !query.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Generar un username único basado en email o uid.
+     */
+    private String generateUniqueUsername(String email, String uid) {
+        String base;
+        if (email != null && email.contains("@")) {
+            base = email.substring(0, email.indexOf('@'));
+        } else {
+            base = "user" + uid.substring(0, Math.min(uid.length(), 6));
+        }
+        base = base.replaceAll("[^a-zA-Z0-9_]", "").toLowerCase();
+        if (base.isBlank()) base = "user";
+
+        String candidate = base;
+        int attempts = 0;
+        while (usernameExistsSync(candidate) && attempts < 10) {
+            candidate = base + RANDOM.nextInt(9000) + 1000; // 4 dígitos
+            attempts++;
+        }
+        return candidate;
     }
 
     /**

@@ -94,7 +94,9 @@ public class AuthService {
      */
     public Mono<UserResponse> getMe(String idToken) {
         return firebaseService.verifyToken(idToken)
-                .flatMap(firebaseService::getUserFromFirestore)
+                // Si el usuario no existe en Firestore (login social por primera vez),
+                // lo creamos con los datos de Firebase Auth.
+                .flatMap(firebaseService::getOrCreateUser)
                 .map(this::mapToUserResponse)
                 .doOnSuccess(u -> log.info("Perfil cargado: {}", u.getUsername()));
     }
