@@ -9,6 +9,11 @@ import '../../screens/home/edit_profile_screen.dart';
 import 'post_detail_page.dart';
 import 'ui_helpers.dart';
 
+/// Colores inspirados en el logo de la UPS
+const kUpsDarkBlue = Color.fromARGB(255, 1, 41, 79);
+const kUpsLightBlue = Color(0xFF4F8EC7);
+const kUpsYellow   = Color(0xFFF4C430);
+
 class ProfileView extends StatelessWidget {
   final List<PostModel> posts;
   final CurrentUser? currentUser;
@@ -59,166 +64,207 @@ class ProfileView extends StatelessWidget {
       return p.username == u1 || p.username == u2;
     }).toList();
 
-    return Column(
-      children: [
-        // HEADER
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-          ),
-          child: Row(
-            children: [
-              const Spacer(),
-              const Text(
-                'Perfil',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+    return Container(
+      color: const Color(0xFFF5F7FB), // fondo general clarito
+      child: Column(
+        children: [
+          // HEADER con gradient UPS
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [kUpsDarkBlue, kUpsLightBlue],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => _openSettingsSheet(context),
-                icon: const Icon(Icons.settings_outlined),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFE5E7EB)),
               ),
-            ],
-          ),
-        ),
-
-        // CONTENIDO
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
+            ),
+            child: Row(
               children: [
-                const SizedBox(height: 20),
-
-                // FOTO
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: avatar,
-                ),
-
-                const SizedBox(height: 12),
-
-                // USERNAME
-                Text(
-                  username,
-                  style: const TextStyle(
+                const Spacer(),
+                const Text(
+                  'Perfil',
+                  style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
-
-                const SizedBox(height: 4),
-
-                // BIO
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    bio,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => _openSettingsSheet(context),
+                  icon: const Icon(
+                    Icons.settings_outlined,
+                    color: kUpsYellow,
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ESTADÍSTICAS
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _ProfileStat(
-                      label: 'Publicaciones',
-                      value: '${userPosts.length}',
-                    ),
-                    const _ProfileStat(label: 'Seguidores', value: '342'),
-                    const _ProfileStat(label: 'Siguiendo', value: '128'),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // TABS PUBLICACIONES / GUARDADAS
-                Container(
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Color(0xFFE5E7EB)),
-                      bottom: BorderSide(color: Color(0xFFE5E7EB)),
-                    ),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(
-                            child: Text(
-                              'Publicaciones',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.purple,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(
-                            child: Text(
-                              'Guardadas',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // GRID DE POSTS DEL USUARIO
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(1),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 1,
-                    crossAxisSpacing: 1,
-                  ),
-                  itemCount: userPosts.length,
-                  itemBuilder: (_, index) {
-                    final post = userPosts[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PostDetailPage(
-                              post: post,
-                              currentUser: currentUser,
-                              onToggleLike: (_) {},
-                              onAddComment: (_, __) {},
-                            ),
-                          ),
-                        );
-                      },
-                      child: Image(
-                        image: buildImageProvider(post.imageUrl),
-                        fit: BoxFit.cover,
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
           ),
-        ),
-      ],
+
+          // CONTENIDO
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+
+                  // FOTO con aro de color
+                  Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [kUpsYellow, kUpsLightBlue],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundImage: avatar,
+                      backgroundColor: Colors.grey.shade200,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // USERNAME
+                  Text(
+                    username,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: kUpsDarkBlue,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  // BIO
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      bio,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ESTADÍSTICAS
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ProfileStat(
+                        label: 'Publicaciones',
+                        value: '${userPosts.length}',
+                      ),
+                      const _ProfileStat(label: 'Seguidores', value: '342'),
+                      const _ProfileStat(label: 'Siguiendo', value: '128'),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // TABS PUBLICACIONES / GUARDADAS con colorcito
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        top: BorderSide(color: Color(0xFFE5E7EB)),
+                        bottom: BorderSide(color: Color(0xFFE5E7EB)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: kUpsYellow,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Publicaciones',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: kUpsDarkBlue,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: const Center(
+                              child: Text(
+                                'Guardadas',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // GRID DE POSTS DEL USUARIO
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(1),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 1,
+                      crossAxisSpacing: 1,
+                    ),
+                    itemCount: userPosts.length,
+                    itemBuilder: (_, index) {
+                      final post = userPosts[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PostDetailPage(
+                                post: post,
+                                currentUser: currentUser,
+                                onToggleLike: (_) {},
+                                onAddComment: (_, __) {},
+                              ),
+                            ),
+                          );
+                        },
+                        child: Image(
+                          image: buildImageProvider(post.imageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -287,12 +333,16 @@ class _ProfileStat extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
+            color: kUpsDarkBlue,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+          ),
         ),
       ],
     );
