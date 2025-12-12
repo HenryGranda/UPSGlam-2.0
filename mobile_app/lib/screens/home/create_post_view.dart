@@ -30,6 +30,7 @@ class _CreatePostViewState extends State<CreatePostView> {
 
   String? _previewImagePath; // archivo local elegido
   bool _publishing = false;
+  bool _previewEnabled = false;
 
   /// Filtros tal cual los espera el backend
   final List<String> _filters = [
@@ -46,9 +47,11 @@ class _CreatePostViewState extends State<CreatePostView> {
   bool get _hasRealImage => _previewImagePath != null;
   bool get _canPublish =>
       _hasRealImage && _descriptionController.text.trim().isNotEmpty;
+  bool get _canCapture => !_previewEnabled;
 
   // --- Cámara ---
   Future<void> _onTakePhoto() async {
+    if (!_canCapture) return;
     final picked =
         await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
     if (picked == null) return;
@@ -59,6 +62,7 @@ class _CreatePostViewState extends State<CreatePostView> {
 
   // --- Galería ---
   Future<void> _onPickFromGallery() async {
+    if (!_canCapture) return;
     final picked =
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null) return;
@@ -156,21 +160,47 @@ class _CreatePostViewState extends State<CreatePostView> {
                   // VISTA PREVIA
                   AspectRatio(
                     aspectRatio: 3 / 4,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _previewImagePath == null
-                          ? const Center(
-                              child: Icon(Icons.image, size: 40),
-                            )
-                          : Image.file(
-                              File(_previewImagePath!),
-                              fit: BoxFit.cover,
+                    child: _previewEnabled
+                        ? _PreviewModePanel(onDisable: () {
+                            setState(() {
+                              _previewEnabled = false;
+                            });
+                          })
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(24),
                             ),
+                            clipBehavior: Clip.antiAlias,
+                            child: _previewImagePath == null
+                                ? const Center(
+                                    child: Icon(Icons.image, size: 40),
+                                  )
+                                : Image.file(
+                                    File(_previewImagePath!),
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // TOGGLE PREVIEW
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Modo previsualización (sólo demostración)'),
+                    subtitle: const Text(
+                      'Desactiva para capturar foto y enviarla al backend.',
                     ),
+                    value: _previewEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _previewEnabled = value;
+                        if (value) {
+                          _previewImagePath = null;
+                        }
+                      });
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -180,7 +210,7 @@ class _CreatePostViewState extends State<CreatePostView> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _onTakePhoto,
+                          onPressed: _canCapture ? _onTakePhoto : null,
                           icon: const Icon(Icons.camera_alt_outlined),
                           label: const Text('Tomar foto'),
                           style: OutlinedButton.styleFrom(
@@ -192,7 +222,7 @@ class _CreatePostViewState extends State<CreatePostView> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _onPickFromGallery,
+                          onPressed: _canCapture ? _onPickFromGallery : null,
                           icon: const Icon(Icons.photo_library_outlined),
                           label: const Text('Galería'),
                           style: OutlinedButton.styleFrom(
@@ -292,6 +322,59 @@ class _CreatePostViewState extends State<CreatePostView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PreviewModePanel extends StatelessWidget {
+  final VoidCallback onDisable;
+
+  const _PreviewModePanel({required this.onDisable});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1F1F1F), Color(0xFF3A3A3A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.visibility, color: Colors.white, size: 48),
+            const SizedBox(height: 16),
+            const Text(
+              'Previsualización Activada',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Utiliza la app de previsualización para ver el filtro en vivo. '
+              'Desactiva este modo para capturar la foto y enviarla al backend.',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton(
+              onPressed: onDisable,
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+              child: const Text('Desactivar previsualización'),
+            ),
+          ],
+        ),
       ),
     );
   }
