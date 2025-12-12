@@ -12,28 +12,28 @@ spring:
         # AUTH SERVICE ROUTES
         # ===============================
         - id: auth-service-register
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/register
           filters:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-login
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/login
           filters:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-me
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/me
           filters:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-users
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/users/**
           filters:
@@ -41,7 +41,7 @@ spring:
         
         # Follow/Unfollow routes
         - id: auth-service-follow-user
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/follows
             - Method=POST
@@ -49,7 +49,7 @@ spring:
             - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-unfollow-user
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/follows/{userId}
             - Method=DELETE
@@ -57,7 +57,7 @@ spring:
             - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-follow-stats
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/follows/{userId}/stats
             - Method=GET
@@ -65,7 +65,7 @@ spring:
             - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-followers
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/follows/{userId}/followers
             - Method=GET
@@ -73,7 +73,7 @@ spring:
             - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
         
         - id: auth-service-following
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/auth/follows/{userId}/following
             - Method=GET
@@ -86,7 +86,7 @@ spring:
         
         # Images (upload y preview) - Multipart endpoints
         - id: post-service-images-upload
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/images/upload
             - Method=POST
@@ -94,7 +94,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-images-preview
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/images/preview
             - Method=POST
@@ -103,7 +103,7 @@ spring:
         
         # Feed (GET /api/feed)
         - id: post-service-feed
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/feed
             - Method=GET
@@ -112,7 +112,7 @@ spring:
         
         # Posts CRUD
         - id: post-service-create-post
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts
             - Method=POST
@@ -120,7 +120,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-get-post
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}
             - Method=GET
@@ -128,7 +128,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-delete-post
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}
             - Method=DELETE
@@ -136,7 +136,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-update-caption
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/caption
             - Method=PATCH
@@ -144,7 +144,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-user-posts
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/user/{userId}
             - Method=GET
@@ -153,7 +153,7 @@ spring:
         
         # Likes
         - id: post-service-like-post
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/likes
             - Method=POST
@@ -161,7 +161,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-unlike-post
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/likes
             - Method=DELETE
@@ -169,7 +169,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-get-likes
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/likes
             - Method=GET
@@ -178,7 +178,7 @@ spring:
         
         # Comments
         - id: post-service-add-comment
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/comments
             - Method=POST
@@ -186,7 +186,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-get-comments
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/comments
             - Method=GET
@@ -194,7 +194,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-delete-comment
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/comments/{commentId}
             - Method=DELETE
@@ -202,7 +202,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-user-comments
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/users/{userId}/comments
             - Method=GET
@@ -210,7 +210,7 @@ spring:
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
         - id: post-service-update-comment    
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/posts/{postId}/comments/{commentId}
             - Method=PUT
@@ -223,7 +223,7 @@ spring:
         
         # List available filters (GET /api/filters)
         - id: cuda-service-list-filters
-          uri: http://localhost:5000
+          uri: http://host.docker.internal:5000
           predicates:
             - Path=/api/filters
             - Method=GET
@@ -232,7 +232,7 @@ spring:
         
         # Apply filter to image (POST /api/filters/{filterName})
         - id: cuda-service-apply-filter
-          uri: http://localhost:5000
+          uri: http://host.docker.internal:5000
           predicates:
             - Path=/api/filters/{filterName}
             - Method=POST
@@ -243,21 +243,21 @@ spring:
         # HEALTH CHECKS
         # ===============================
         - id: auth-service-health
-          uri: http://localhost:8082
+          uri: http://host.docker.internal:8082
           predicates:
             - Path=/api/health/auth
           filters:
             - RewritePath=/api/health/auth, /actuator/health
         
         - id: post-service-health
-          uri: http://localhost:8081
+          uri: http://host.docker.internal:8081
           predicates:
             - Path=/api/health/posts
           filters:
             - RewritePath=/api/health/posts, /actuator/health
         
         - id: cuda-service-health
-          uri: http://localhost:5000
+          uri: http://host.docker.internal:5000
           predicates:
             - Path=/api/health/cuda
           filters:
