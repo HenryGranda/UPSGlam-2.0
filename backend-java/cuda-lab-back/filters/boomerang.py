@@ -9,10 +9,13 @@ Returns a single static image with crisp, textured balls showing motion trail.
 import numpy as np
 import cv2
 from pathlib import Path
+import sys
+import os
 
-import pycuda.autoinit
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from cuda_kernels import _initialize_cuda, compile_cuda_kernel_to_ptx
+
 import pycuda.driver as cuda
-from pycuda.compiler import SourceModule
 
 
 KERNEL_CODE = r"""
@@ -104,7 +107,12 @@ class BoomerangFilter:
     """Boomerang filter - shows multiple balls at different positions creating a trail effect"""
     
     def __init__(self):
-        self.module = SourceModule(KERNEL_CODE)
+        # Initialize CUDA context
+        _initialize_cuda()
+        
+        # Compile using nvcc directly to avoid auto-detection issues
+        ptx_code = compile_cuda_kernel_to_ptx(KERNEL_CODE, arch="sm_89")
+        self.module = cuda.module_from_buffer(ptx_code.encode())
         self.draw_texture_kernel = self.module.get_function("draw_texture_balls")
     
     def generate_ball_positions(self, num_positions, width, height, radius):

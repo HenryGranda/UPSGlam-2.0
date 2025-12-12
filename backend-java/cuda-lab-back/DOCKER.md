@@ -33,14 +33,21 @@ docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 
 ## 🚀 Build y Run
 
-### Opción A: Docker Compose (Recomendado)
+### Opción A: Script Automatizado (Recomendado)
 
 ```powershell
-# Build
-docker-compose build
+# Build, deploy y test en un solo comando
+.\build-docker.ps1
 
-# Run en background
-docker-compose up -d
+# Luego ejecutar tests
+.\test-docker.ps1
+```
+
+### Opción B: Docker Compose
+
+```powershell
+# Build y Run
+docker-compose up -d --build
 
 # Ver logs
 docker-compose logs -f
@@ -49,7 +56,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### Opción B: Docker Manual
+### Opción C: Docker Manual
 
 ```powershell
 # Build image
@@ -59,8 +66,9 @@ docker build -t cuda-lab-back:latest .
 docker run -d `
   --name cuda-lab-backend `
   --gpus all `
-  -p 8000:8000 `
+  -p 5000:5000 `
   -e CUDA_VISIBLE_DEVICES=0 `
+  --restart unless-stopped `
   cuda-lab-back:latest
 
 # Ver logs
@@ -75,27 +83,52 @@ docker rm cuda-lab-backend
 
 ## 🧪 Probar el Servicio
 
-### 1. Health Check
+### 1. Ejecutar Suite de Tests
 ```powershell
-curl http://localhost:8000/health
+.\test-docker.ps1
 ```
 
-### 2. Probar Filtro
+### 2. Health Check Manual
 ```powershell
-# Crear test request
-$body = @{
-  image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-  filter = @{
-    type = "gaussian"
-    mask_size = 3
-  }
-  cuda_config = @{
-    block_dim = @(16, 16)
-    grid_dim = @(1, 1)
-  }
-} | ConvertTo-Json
+curl http://localhost:5000/health
+```
 
-Invoke-RestMethod -Uri http://localhost:8000/convolve -Method POST -Body $body -ContentType "application/json"
+### 3. Listar Filtros Disponibles
+```powershell
+curl http://localhost:5000/filters
+```
+
+### 4. Probar Filtro Específico
+```powershell
+# Gaussian filter (usando curl)
+curl -X POST "http://localhost:5000/filters/gaussian" `
+     -H "Content-Type: image/jpeg" `
+     --data-binary "@husky.jpg" `
+     -o "output_gaussian.jpg"
+
+# CR7 face mask filter
+curl -X POST "http://localhost:5000/filters/cr7" `
+     -H "Content-Type: image/jpeg" `
+     --data-binary "@husky.jpg" `
+     -o "output_cr7.jpg"
+
+# Prewitt edge detection
+curl -X POST "http://localhost:5000/filters/prewitt" `
+     -H "Content-Type: image/jpeg" `
+     --data-binary "@husky.jpg" `
+     -o "output_prewitt.jpg"
+```
+
+### 5. Test con PowerShell
+```powershell
+$imageBytes = [System.IO.File]::ReadAllBytes(".\husky.jpg")
+
+Invoke-RestMethod `
+    -Uri "http://localhost:5000/filters/gaussian" `
+    -Method POST `
+    -ContentType "image/jpeg" `
+    -Body $imageBytes `
+    -OutFile "output_gaussian.jpg"
 ```
 
 ---
@@ -140,11 +173,11 @@ docker exec -it cuda-lab-backend nvcc --version
 - Reiniciar sistema
 - Verificar `nvidia-smi` en WSL2
 
-### Puerto 8000 en uso
+### Puerto 5000 en uso
 ```powershell
 # Cambiar puerto en docker-compose.yml
 ports:
-  - "8080:8000"  # usar puerto 8080 en host
+  - "8080:5000"  # usar puerto 8080 en host
 ```
 
 ---
@@ -194,7 +227,7 @@ docker-compose up -d --build
    ```yaml
    volumes:
      - ./:/app
-   command: ["python3", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+   command: ["python3", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
    ```
 
 ---

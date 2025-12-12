@@ -178,7 +178,11 @@ def _ensure_cuda_compiled():
     if _mod is None:
         try:
             from pycuda.compiler import SourceModule
-            _mod = SourceModule(CUDA_KERNEL_SRC)
+            # Forzar arquitectura sm_89 para RTX 5070 Ti Blackwell
+            _mod = SourceModule(
+                CUDA_KERNEL_SRC,
+                options=["-arch=sm_89"]
+            )
             _convolution_kernel = _mod.get_function("convolution")
         except Exception as e:
             raise RuntimeError(

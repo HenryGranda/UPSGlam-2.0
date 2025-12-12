@@ -1,10 +1,13 @@
 import numpy as np
 import cv2
 import uuid
+import sys
+import os
 
-import pycuda.autoinit  # inicializa el contexto CUDA
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from cuda_kernels import _initialize_cuda, compile_cuda_kernel_to_ptx
+
 import pycuda.driver as cuda
-from pycuda.compiler import SourceModule
 
 
 # ============================================================
@@ -60,7 +63,12 @@ __global__ void alpha_blend_face(
 # ============================================================
 class FaceMaskFilter:
     def __init__(self):
-        self.module = SourceModule(KERNEL_SOURCE, options=["-use_fast_math"])
+        # Initialize CUDA context
+        _initialize_cuda()
+        
+        # Compile using nvcc directly to avoid auto-detection issues
+        ptx_code = compile_cuda_kernel_to_ptx(KERNEL_SOURCE, arch="sm_89")
+        self.module = cuda.module_from_buffer(ptx_code.encode())
         self.kernel = self.module.get_function("alpha_blend_face")
 
         # Clasificador de caras (Haar Cascade)

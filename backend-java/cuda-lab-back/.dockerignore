@@ -25,13 +25,14 @@ Thumbs.db
 .gitignore
 
 # Docker
-Dockerfile
-docker-compose.yml
 .dockerignore
 
-# Tests
-tests/
+# Tests (keep test files but ignore results)
 *.pytest_cache/
+test_results/
 
-# Documentation
-README.MD
+# Documentation (keep all docs)
+
+# Exclude test images but keep assets
+husky.jpg
+husky_*.jpg
