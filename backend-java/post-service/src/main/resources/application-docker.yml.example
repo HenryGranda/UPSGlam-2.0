@@ -1,0 +1,75 @@
+# Configuración para el perfil Docker - EXAMPLE
+# Copy this file to application-docker.yml and configure your values
+# NEVER commit application-docker.yml to git!
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: post-service
+  
+  # R2DBC Configuration for Supabase Postgres (Docker)
+  r2dbc:
+    url: r2dbc:postgresql://${SUPABASE_DB_HOST:your-db-host.pooler.supabase.com}:${SUPABASE_DB_PORT:6543}/${SUPABASE_DB_NAME:postgres}
+    username: ${SUPABASE_DB_USER:postgres.your-project-ref}
+    password: ${SUPABASE_DB_PASSWORD}
+    pool:
+      initial-size: 5
+      max-size: 10
+      max-idle-time: 30m
+
+  # WebFlux Configuration
+  webflux:
+    base-path: /api
+  
+  # File upload configuration
+  codec:
+    max-in-memory-size: 10MB
+
+# Supabase Configuration (Docker)
+supabase:
+  url: ${SUPABASE_URL}
+  key: ${SUPABASE_KEY:your-anon-key}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+  storage:
+    bucket: upsglam
+    folders:
+      temp: temp
+      posts: posts
+      avatars: avatars
+
+# Firebase Configuration (Docker) - Usar archivo montado como volumen
+firebase:
+  credentials:
+    path: /app/firebase-credentials.json
+  project-id: ${FIREBASE_PROJECT_ID:your-project-id}
+  database-id: db-auth
+  storage:
+    bucket: your-project-id.appspot.com
+  api-key: ${FIREBASE_API_KEY:your-api-key}
+
+# PyCUDA Service Configuration (Docker network)
+pycuda:
+  service:
+    url: http://cuda-backend:5000
+    timeout: 30000 # 30 seconds
+
+# Logging optimizado para contenedor
+logging:
+  level:
+    root: INFO
+    ec.ups.upsglam: INFO
+    org.springframework.web: INFO
+    org.springframework.web.reactive.function.server: DEBUG
+    io.r2dbc: INFO
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

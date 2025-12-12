@@ -86,6 +86,15 @@ def decode_image_bytes(image_bytes: bytes, preserve_color: bool = True) -> np.nd
     
     try:
         img = Image.open(io.BytesIO(image_bytes))
+        
+        # Fix EXIF orientation to prevent rotated images
+        try:
+            from PIL import ImageOps
+            img = ImageOps.exif_transpose(img)
+        except Exception:
+            # If exif_transpose fails, continue without it
+            pass
+            
     except Exception as e:
         raise ValueError(f"Invalid image bytes: {e}")
     

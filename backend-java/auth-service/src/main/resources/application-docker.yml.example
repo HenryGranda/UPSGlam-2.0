@@ -1,0 +1,49 @@
+# Configuración para el perfil Docker - EXAMPLE
+# Copy this file to application-docker.yml and configure your values
+# NEVER commit application-docker.yml to git!
+
+server:
+  port: 8082
+
+spring:
+  application:
+    name: auth-service
+  
+  # WebFlux Configuration
+  webflux:
+    base-path: /api
+  
+  # File upload configuration
+  codec:
+    max-in-memory-size: 10MB
+
+# Firebase Configuration (Docker) - Usar archivo montado como volumen
+firebase:
+  credentials:
+    path: /app/firebase-credentials.json
+  project-id: ${FIREBASE_PROJECT_ID:your-project-id}
+  database-id: ${FIREBASE_DATABASE_ID:db-auth}
+  api-key: ${FIREBASE_API_KEY:your-api-key}
+  storage:
+    bucket: ${FIREBASE_STORAGE_BUCKET:your-project-id.appspot.com}
+    folders:
+      avatars: avatars
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+
+# Logging optimizado para contenedor
+logging:
+  level:
+    root: INFO
+    ec.ups.upsglam: INFO
+    com.google.firebase: INFO
+    com.google.cloud: INFO

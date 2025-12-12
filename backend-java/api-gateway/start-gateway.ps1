@@ -6,7 +6,7 @@ Write-Host "Iniciando API Gateway..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
 
 # Configurar Java 21
-$env:JAVA_HOME = 'C:\Program Files\jdk-21.0.6+7'
+$env:JAVA_HOME = 'C:\Program Files\Java\jdk-21'
 
 # Recompilar
 Write-Host "Compilando..." -ForegroundColor Yellow

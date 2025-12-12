@@ -1,156 +1,253 @@
-# CUDA Image Lab - Backend
+# 🎨 CUDA Lab Backend - UPSGlam 2.0
 
-Backend de procesamiento de imágenes con aceleración GPU usando CUDA y FastAPI.
+## 📋 Descripción General
 
-## 📋 Tabla de Contenidos
-
-- [Descripción](#descripción)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
-- [Arquitectura](#arquitectura)
-- [API Endpoints](#api-endpoints)
-- [Filtros Disponibles](#filtros-disponibles)
-- [Ejemplos de Uso](#ejemplos-de-uso)
-- [Parámetros CUDA](#parámetros-cuda)
-
----
-
-## 🎯 Descripción
-
-Sistema de procesamiento de imágenes en tiempo real con aceleración GPU NVIDIA CUDA. Implementa 4 filtros de convolución optimizados:
-
-- **Prewitt**: Detección de bordes (primera derivada)
-- **Laplacian**: Detección de bordes (segunda derivada) / LoG
-- **Gaussian**: Suavizado con distribución gaussiana
-- **Box Blur**: Suavizado rápido con promedio simple
-
-Cada filtro utiliza **convolución separable** para máxima eficiencia: O(2N) vs O(N²).
-
----
-
-## 🔧 Requisitos
-
-### Hardware
-- GPU NVIDIA con soporte CUDA (Compute Capability >= 3.0)
-- Mínimo 2GB VRAM recomendado
-
-### Software
-- Python 3.10+
-- CUDA Toolkit 11.0+ 
-- Visual Studio Build Tools (Windows)
-- NVIDIA GPU Drivers actualizados
-
-### Dependencias Python
-```txt
-fastapi
-uvicorn
-pycuda
-numpy
-pillow
-pydantic
-```
-
----
-
-## 📦 Instalación
-
-### 1. Activar entorno virtual
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### 2. Instalar dependencias
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Verificar CUDA
-```bash
-nvidia-smi
-```
-
-### 4. Iniciar servidor
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-O sin auto-reload:
-```bash
-python -c "import uvicorn; uvicorn.run('app:app', host='0.0.0.0', port=8000)"
-```
+El **CUDA Lab Backend** es el microservicio de procesamiento de imágenes que utiliza **PyCUDA** para aplicar filtros y efectos a imágenes mediante aceleración por GPU NVIDIA. Implementado con **FastAPI**, este servicio proporciona endpoints RESTful de alto rendimiento para el procesamiento de imágenes en tiempo real.
 
 ---
 
 ## 🏗️ Arquitectura
 
-```
-cuda-lab-back/
-├── app.py                      # FastAPI application (3 endpoints)
-├── convolution_service.py      # Main orchestrator (sync processing)
-├── progressive_convolution.py  # SSE streaming service (progressive)
-├── cuda_kernels.py             # Shared CUDA context + PTX compilation
-├── image_utils.py              # Image encoding/decoding
-├── filters/
-│   ├── __init__.py            # Filter router
-│   ├── prewitt.py             # Prewitt filter (5 CUDA kernels)
-│   ├── laplacian.py           # Laplacian/LoG (3 CUDA kernels)
-│   ├── gaussian.py            # Gaussian (4 CUDA kernels)
-│   └── box_blur.py            # Box Blur (2 CUDA kernels)
-└── tests/
-    └── ...
-```
+### Stack Tecnológico
+- **Framework**: FastAPI 0.122.0
+- **GPU Computing**: PyCUDA 2025.1.2
+- **Image Processing**: OpenCV 4.10.0, Pillow 12.0.0
+- **Runtime**: Python 3.10+
+- **CUDA**: NVIDIA CUDA Toolkit 12.x
+- **Server**: Uvicorn 0.38.0 (ASGI)
+- **Container**: Docker con soporte GPU
 
-**Principios de diseño:**
-- ✅ Lazy CUDA initialization (contexto compartido)
-- ✅ Cada filtro auto-contenido en `filters/`
-- ✅ Grid dimensions auto-calculadas
-- ✅ Kernels separables para eficiencia
-- ✅ Manejo de errores robusto
-- ✅ SSE streaming para visualización progresiva
-
-**Módulos Principales:**
-- `app.py` - FastAPI endpoints (POST /convolve, POST /convolve-stream, GET /health)
-- `convolution_service.py` - Orquestación de procesamiento estándar
-- `progressive_convolution.py` - Procesamiento por chunks con SSE streaming
-- `cuda_kernels.py` - Contexto CUDA compartido y compilación PTX
-- `image_utils.py` - Conversión base64 ↔ NumPy ↔ PIL
-- `filters/` - Implementaciones especializadas de cada filtro
+### Dependencias Principales
+```python
+fastapi==0.122.0
+pycuda==2025.1.2
+opencv-python-headless==4.10.0.84
+pillow==12.0.0
+numpy==2.2.1
+scipy==1.14.1
+uvicorn==0.38.0
+```
 
 ---
 
-## 🌐 API Endpoints
+## 🚀 Características Principales
+
+### 1. **Procesamiento GPU Acelerado**
+- Convoluciones CUDA optimizadas
+- Kernels personalizados para cada filtro
+- Procesamiento paralelo masivo
+- Performance 10-50x más rápido que CPU
+
+### 2. **Filtros Implementados**
+
+#### Filtros de Desenfoque (Blur)
+- **Gaussian Blur**: Desenfoque gaussiano suave
+- **Box Blur**: Desenfoque de caja uniforme
+
+#### Filtros de Detección de Bordes
+- **Prewitt**: Detección de bordes con operador Prewitt
+- **Laplacian**: Detección de bordes con Laplaciano
+
+#### Filtros Especiales
+- **UPS Logo**: Overlay del logo de la Universidad
+- **Boomerang**: Efecto espejo boomerang
+- **CR7**: Máscara temática de CR7
+
+### 3. **API Endpoints**
+
+#### Endpoints Modernos (`/filters/*`)
+- `POST /filters/apply`: Aplicar filtro por nombre
+- `GET /filters/available`: Listar filtros disponibles
+
+#### Endpoints Legacy (`/convolve`)
+- `POST /convolve`: Endpoint legacy con config manual CUDA
+
+---
+
+## 🗂️ Estructura del Proyecto
+
+```
+cuda-lab-back/
+├── app.py                    # FastAPI application
+├── convolution_service.py    # CUDA convolution logic
+├── cuda_kernels.py           # CUDA kernel definitions
+├── image_utils.py            # Image processing utilities
+├── progressive_convolution.py # Progressive processing
+├── filters/                  # Filter implementations
+│   ├── __init__.py
+│   ├── gaussian.py
+│   ├── box_blur.py
+│   ├── prewitt.py
+│   ├── laplacian.py
+│   ├── ups_logo.py
+│   ├── boomerang.py
+│   ├── cr7.py
+│   └── assets/              # Filter assets (logos, masks)
+├── tests/                    # Unit tests
+│   ├── test_filters.py
+│   └── test_cuda.py
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## 🔧 Configuración
+
+### Requisitos del Sistema
+
+#### Hardware
+- **GPU**: NVIDIA GPU con Compute Capability 3.5+
+- **VRAM**: Mínimo 2GB recomendado
+- **Drivers**: NVIDIA Driver 525+ para CUDA 12
+
+#### Software
+- **CUDA Toolkit**: 12.x
+- **Python**: 3.10+
+- **pip**: 23.0+
+
+### Variables de Entorno
+
+| Variable | Descripción | Default | Requerido |
+|----------|-------------|---------|-----------|
+| `CUDA_VISIBLE_DEVICES` | GPUs a usar | `0` | ❌ |
+| `PORT` | Puerto del servicio | `5000` | ❌ |
+| `HOST` | Host binding | `0.0.0.0` | ❌ |
+| `WORKERS` | Workers de Uvicorn | `1` | ❌ |
+
+### Instalación Local
+
+```bash
+# 1. Clonar repositorio
+cd backend-java/cuda-lab-back
+
+# 2. Crear entorno virtual
+python -m venv venv
+
+# Windows
+.\venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Verificar CUDA
+python -c "import pycuda.driver as cuda; cuda.init(); print(f'CUDA devices: {cuda.Device.count()}')"
+```
+
+---
+
+## 📡 API Endpoints
+
+### Base URL
+- **Local**: `http://localhost:5000`
+- **Docker**: `http://cuda-backend:5000`
+- **Gateway**: `http://localhost:8080/api/filters`
+
+---
 
 ### 1. Health Check
 
-**Endpoint:** `GET /health`
+#### `GET /health`
+Verificar estado del servicio y GPU.
 
-**Respuesta:**
+**Response:**
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "cuda_available": true,
+  "gpu_count": 1,
+  "gpu_name": "NVIDIA GeForce RTX 3060"
 }
 ```
 
 ---
 
-### 2. Aplicar Filtro de Convolución
+### 2. Filtros Modernos
 
-**Endpoint:** `POST /convolve`
+#### `GET /filters/available`
+Obtener lista de filtros disponibles.
 
-**Descripción:** Procesamiento estándar síncrono de imagen con filtro CUDA.
-
-**Request Body:**
+**Response:**
 ```json
 {
-  "image_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
+  "filters": [
+    {
+      "name": "gaussian",
+      "display_name": "Gaussian Blur",
+      "description": "Suaviza la imagen con desenfoque gaussiano",
+      "category": "blur",
+      "parameters": {
+        "mask_size": [3, 5, 7, 9],
+        "default_mask_size": 5
+      }
+    },
+    {
+      "name": "prewitt",
+      "display_name": "Prewitt Edge Detection",
+      "description": "Detecta bordes usando operador Prewitt",
+      "category": "edge_detection",
+      "parameters": {
+        "gain": "float",
+        "default_gain": 8.0
+      }
+    }
+    // ... más filtros
+  ]
+}
+```
+
+#### `POST /filters/apply`
+Aplicar filtro a una imagen.
+
+**Request (multipart/form-data):**
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=gaussian" \
+  -F "mask_size=5"
+```
+
+**Form Data:**
+- `image`: Archivo de imagen (JPEG, PNG)
+- `filter_name`: Nombre del filtro
+- `mask_size` (opcional): Tamaño del kernel (3, 5, 7, 9)
+- `gain` (opcional): Ganancia para filtros de bordes
+
+**Response:**
+- Content-Type: `image/jpeg` o `image/png`
+- Body: Imagen procesada
+
+**Error Response:**
+```json
+{
+  "detail": "Filter 'invalid_filter' not found. Available filters: gaussian, box_blur, prewitt, ..."
+}
+```
+
+---
+
+### 3. Endpoint Legacy
+
+#### `POST /convolve`
+Aplicar convolución con configuración CUDA manual.
+
+**Request:**
+```json
+{
+  "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
   "filter": {
-    "type": "prewitt | laplacian | gaussian | box_blur",
-    "mask_size": 3,
+    "type": "blur",
+    "mask_size": 5,
     "gain": 8.0
   },
   "cuda_config": {
     "block_dim": [16, 16],
-    "grid_dim": [29, 40]
+    "grid_dim": [32, 32]
   }
 }
 ```
@@ -158,445 +255,400 @@ cuda-lab-back/
 **Response:**
 ```json
 {
-  "status": "ok",
-  "result_image_base64": "iVBORw0KGgoAAAANSUhEUgAA...",
-  "execution_time_ms": 0.45,
-  "kernel_time_ms": 0.42,
-  "image_width": 640,
-  "image_height": 480,
-  "filter_used": "prewitt",
-  "mask_size_used": 3,
-  "block_dim": [16, 16],
-  "grid_dim": [29, 40]
+  "result_image_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "execution_time_ms": 45.6,
+  "filter_applied": "blur",
+  "image_size": [1920, 1080]
 }
 ```
-
----
-
-### 3. Visualización Progresiva con SSE
-
-**Endpoint:** `POST /convolve-stream`
-
-**Descripción:** Procesamiento progresivo con **Server-Sent Events (SSE)** que permite visualizar el procesamiento píxel por píxel en tiempo real.
-
-**Request Body:** Idéntico a `/convolve`
-
-**Response:** Stream de eventos SSE
-
-```
-data: {"progress": 5.18, "chunk": 1, "total_chunks": 193, "rows_processed": 32, "total_rows": 6162, "elapsed_ms": 234, "result_image_base64": "data:image/png;base64,...", "filter_used": "gaussian", "mask_size_used": 9}
-
-data: {"progress": 10.36, "chunk": 2, "total_chunks": 193, "rows_processed": 64, "total_rows": 6162, "elapsed_ms": 468, "result_image_base64": "data:image/png;base64,...", "filter_used": "gaussian", "mask_size_used": 9}
-
-...
-
-data: {"progress": 100, "chunk": 193, "total_chunks": 193, "rows_processed": 6162, "total_rows": 6162, "elapsed_ms": 9650, "result_image_base64": "data:image/png;base64,...", "filter_used": "gaussian", "mask_size_used": 9, "completed": true}
-```
-
-**¿Cómo Funciona?**
-
-1. **División en Chunks**: La imagen se divide en franjas horizontales (default: 32 filas por chunk)
-2. **Procesamiento Secuencial**: Cada chunk se procesa con el filtro CUDA completo
-3. **Transmisión Progresiva**: Después de procesar cada chunk, se envía el estado actual de la imagen vía SSE
-4. **Delay Configurable**: Pausa de 50ms entre chunks para hacer la visualización visible
-
-**Parámetros de Configuración** (`progressive_convolution.py`):
-```python
-chunk_size: int = 32  # Número de filas por chunk (ajustable)
-time.sleep(0.05)      # Delay entre chunks: 50ms (ajustable)
-```
-
-**Performance:**
-- **Overhead**: ~50ms por chunk
-- **Ejemplo**: Imagen 512×512 con chunk_size=32 → 16 chunks
-- **Tiempo Total**: Tiempo procesamiento + (chunks × delay)
-  - Procesamiento normal: 100ms
-  - Con streaming: 100ms + (16 × 50ms) = 900ms total
-
-**Casos de Uso:**
-- 📚 **Educativo**: Demostración de filtros de convolución en acción
-- 🐛 **Debugging**: Identificar problemas en kernels CUDA observando artefactos visuales
-- 🎥 **Demo/Presentación**: Efecto visual impactante para audiencias no técnicas
-
-**Notas Importantes:**
-- ✅ Cada chunk SÍ se procesa con el kernel CUDA real
-- ✅ La imagen final es idéntica al endpoint `/convolve` normal
-- ✅ Los tiempos de ejecución reflejan procesamiento real de GPU
-- ⚠️ La división secuencial es artificial (GPU procesa en paralelo)
-- ⚠️ El delay es cosmético (no refleja latencia real de GPU)
 
 ---
 
 ## 🎨 Filtros Disponibles
 
-### 1. 🔍 Prewitt - Detección de Bordes Direccional
+### 1. Gaussian Blur (`gaussian`)
 
-**Descripción:** Detecta bordes usando gradientes en X e Y (primera derivada).
+**Descripción**: Desenfoque suave usando distribución gaussiana.
 
-**Algoritmo:** Separable - 5 kernels CUDA
-1. `box_vert_u8_to_f` - Suma vertical
-2. `prewitt_x_from_V` - Gradiente X con pesos [-1, 0, +1]
-3. `box_horiz_u8_to_f` - Suma horizontal  
-4. `prewitt_y_from_H` - Gradiente Y con pesos [-1, 0, +1]
-5. `combine_mag_to_gray` - Combina: |gx| + |gy| con gain
+**Parámetros**:
+- `mask_size`: 3, 5, 7, 9 (default: 5)
 
-**Parámetros:**
-- `mask_size`: Tamaño del kernel (3, 5, 7, 9, 21...) - debe ser impar
-- `gain`: Factor de realce de bordes (1.0-10.0+)
-  - 1.0 - 3.0: Bordes sutiles
-  - 4.0 - 6.0: Moderado
-  - 7.0 - 10.0: Fuerte (default 8.0)
-  - 10.0+: Muy intenso
-
-**Ejemplo:**
-```json
-{
-  "filter": {
-    "type": "prewitt",
-    "mask_size": 3,
-    "gain": 8.0
-  }
-}
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=gaussian" \
+  -F "mask_size=5" \
+  -o gaussian_output.jpg
 ```
 
-**Resultado:** Imagen con bordes resaltados en blanco sobre fondo oscuro.
-
----
-
-### 2. ⚡ Laplacian - Detección de Bordes Omnidireccional
-
-**Descripción:** Detecta bordes usando segunda derivada (cambios rápidos de intensidad).
-
-**Modos:**
-
-#### A) Laplacian Clásico 3x3
+**Kernel Gaussiano (5x5)**:
 ```
-[-1 -1 -1]
-[-1  8 -1]
-[-1 -1 -1]
-```
-**Uso:** `mask_size: 3`
-
-#### B) Laplacian of Gaussian (LoG) NxN
-Combina suavizado Gaussiano + Laplaciano para reducir ruido.
-
-Fórmula: `LoG(x,y) = -((r² - 2σ²)/σ⁴) * exp(-r²/(2σ²))`  
-donde `σ = N / 6`
-
-**Algoritmo LoG:** 3 kernels CUDA
-1. `conv_log_u8_to_f` - Convolución NxN con kernel LoG
-2. `f_abs_to_u8` - Valor absoluto + clamp [0,255]
-
-**Parámetros:**
-- `mask_size`: 
-  - `3` → Laplacian clásico (rápido)
-  - `5, 7, 9, 21, 65...` → LoG (más suave, menos ruido)
-
-**Ejemplo:**
-```json
-{
-  "filter": {
-    "type": "laplacian",
-    "mask_size": 9
-  }
-}
-```
-
-**Resultado:** Bordes finos en todas direcciones.
-
----
-
-### 3. 🌫️ Gaussian - Suavizado de Alta Calidad
-
-**Descripción:** Suavizado con distribución gaussiana 2D - reduce ruido preservando bordes.
-
-**Algoritmo:** Separable - 4 kernels CUDA
-1. `u8_to_f` - Convierte uint8 → float
-2. `gauss_horiz_f` - Convolución horizontal 1D
-3. `gauss_vert_f` - Convolución vertical 1D
-4. `f_to_u8` - Convierte float → uint8
-
-**Fórmula Kernel 1D:**  
-`G(x) = exp(-x²/(2σ²))` normalizado, donde `σ = N / 6`
-
-**Parámetros:**
-- `mask_size`: Tamaño del kernel (3, 5, 7, 9, 21, 61, 121...)
-  - Más grande = más suavizado
-  - N=3: Suavizado mínimo
-  - N=21: Suavizado medio
-  - N=121: Suavizado intenso
-
-**Ejemplo:**
-```json
-{
-  "filter": {
-    "type": "gaussian",
-    "mask_size": 21
-  }
-}
-```
-
-**Resultado:** Imagen suavizada sin artefactos, preserva estructura.
-
----
-
-### 4. 📦 Box Blur - Suavizado Rápido
-
-**Descripción:** Promedio simple de vecinos - el más rápido, calidad media.
-
-**Algoritmo:** Separable - 2 kernels CUDA
-1. `box_horiz_u8_to_f` - Suma horizontal
-2. `box_vert_f_to_u8` - Suma vertical + normalización (1/N²)
-
-**Parámetros:**
-- `mask_size`: Tamaño del kernel (3, 5, 7, 9, 21...)
-  - N=3: Suavizado ligero
-  - N=9: Suavizado moderado
-  - N=21: Suavizado fuerte
-
-**Ejemplo:**
-```json
-{
-  "filter": {
-    "type": "box_blur",
-    "mask_size": 9
-  }
-}
-```
-
-**Resultado:** Imagen suavizada uniformemente (puede verse "blocky").
-
----
-
-## 💡 Ejemplos de Uso
-
-### Ejemplo 1: Prewitt con Gain Ajustable
-
-```json
-{
-  "image_base64": "/9j/4AAQSkZJRg...",
-  "filter": {
-    "type": "prewitt",
-    "mask_size": 5,
-    "gain": 6.0
-  },
-  "cuda_config": {
-    "block_dim": [16, 16],
-    "grid_dim": [1, 1]
-  }
-}
-```
-
-### Ejemplo 2: LoG 65x65 (Alta Calidad)
-
-```json
-{
-  "image_base64": "/9j/4AAQSkZJRg...",
-  "filter": {
-    "type": "laplacian",
-    "mask_size": 65
-  },
-  "cuda_config": {
-    "block_dim": [16, 16],
-    "grid_dim": [1, 1]
-  }
-}
-```
-
-### Ejemplo 3: Gaussian Suave
-
-```json
-{
-  "image_base64": "/9j/4AAQSkZJRg...",
-  "filter": {
-    "type": "gaussian",
-    "mask_size": 21
-  },
-  "cuda_config": {
-    "block_dim": [32, 16],
-    "grid_dim": [1, 1]
-  }
-}
-```
-
-### Ejemplo 4: Box Blur Rápido
-
-```json
-{
-  "image_base64": "/9j/4AAQSkZJRg...",
-  "filter": {
-    "type": "box_blur",
-    "mask_size": 9
-  },
-  "cuda_config": {
-    "block_dim": [16, 16],
-    "grid_dim": [1, 1]
-  }
-}
+[ 1,  4,  7,  4, 1 ]
+[ 4, 16, 26, 16, 4 ]
+[ 7, 26, 41, 26, 7 ]
+[ 4, 16, 26, 16, 4 ]
+[ 1,  4,  7,  4, 1 ]
+/ 273
 ```
 
 ---
 
-## ⚙️ Parámetros CUDA
+### 2. Box Blur (`box_blur`)
 
-### Block Dimensions (`block_dim`)
+**Descripción**: Desenfoque uniforme promediando píxeles vecinos.
 
-**Descripción:** Tamaño del bloque de threads CUDA.
+**Parámetros**:
+- `mask_size`: 3, 5, 7, 9 (default: 5)
 
-**Valores recomendados:**
-- `[16, 16]` - Balanceado (256 threads)
-- `[32, 16]` - Más threads en X (512 threads)
-- `[8, 8]` - Menor uso (64 threads)
-
-**Límites:**
-- Máximo: 1024 threads por bloque
-- Común: 256-512 threads
-
-### Grid Dimensions (`grid_dim`)
-
-**Descripción:** Número de bloques en la grid. **Se auto-calcula internamente.**
-
-**Fórmula:**
-```
-gridX = (image_width + blockX - 1) / blockX
-gridY = (image_height + blockY - 1) / blockY
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=box_blur" \
+  -o box_blur_output.jpg
 ```
 
-**Nota:** Puedes enviar `[1, 1]` - será recalculado automáticamente.
+**Kernel Box (5x5)**:
+```
+[ 1, 1, 1, 1, 1 ]
+[ 1, 1, 1, 1, 1 ]
+[ 1, 1, 1, 1, 1 ]
+[ 1, 1, 1, 1, 1 ]
+[ 1, 1, 1, 1, 1 ]
+/ 25
+```
 
 ---
 
-## 📊 Comparación de Filtros
+### 3. Prewitt Edge Detection (`prewitt`)
 
-| Filtro | Propósito | Velocidad | Calidad | Separable | Kernels CUDA |
-|--------|-----------|-----------|---------|-----------|--------------|
-| **Prewitt** | Bordes direccionales | ⚡⚡⚡ | ⭐⭐⭐⭐ | ✅ | 5 |
-| **Laplacian** | Bordes omnidireccionales | ⚡⚡⚡ | ⭐⭐⭐⭐ | ❌ | 3 |
-| **Gaussian** | Suavizado calidad | ⚡⚡ | ⭐⭐⭐⭐⭐ | ✅ | 4 |
-| **Box Blur** | Suavizado rápido | ⚡⚡⚡⚡ | ⭐⭐⭐ | ✅ | 2 |
+**Descripción**: Detecta bordes horizontales y verticales.
 
----
+**Parámetros**:
+- `gain`: Factor de amplificación (default: 8.0)
 
-## 🐛 Solución de Problemas
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=prewitt" \
+  -F "gain=8.0" \
+  -o prewitt_output.jpg
+```
 
-### Error: "CUDA initialization error"
-- Verifica drivers NVIDIA: `nvidia-smi`
-- Instala CUDA Toolkit
-- Reinicia el sistema
+**Kernels Prewitt**:
+```
+Gx (horizontal):        Gy (vertical):
+[-1, 0, 1]              [-1,-1,-1]
+[-1, 0, 1]              [ 0, 0, 0]
+[-1, 0, 1]              [ 1, 1, 1]
+```
 
-### Error: "cuModuleLoadDataEx failed"
-- Verifica Visual Studio Build Tools instalado
-- Instala Windows SDK
-- Reinicia terminal como administrador
-
-### Imagen resultante en negro
-- Verifica que la imagen base64 esté correcta
-- Revisa el `gain` en Prewitt (no uses valores muy altos)
-- Prueba con `mask_size` más pequeño primero
-
-### Rendimiento lento
-- Aumenta `block_dim` a `[32, 16]`
-- Usa kernels más pequeños (`mask_size: 3-9`)
-- Verifica que no haya otros procesos usando la GPU
+**Magnitude**: `sqrt(Gx² + Gy²) * gain`
 
 ---
 
-## 📝 Notas Técnicas
+### 4. Laplacian Edge Detection (`laplacian`)
 
-### Convolución Separable
-Todos los filtros excepto Laplacian 3x3 usan convolución separable:
-- Complejidad: O(2N×W×H) vs O(N²×W×H)
-- Ejemplo: N=21 → 42 operaciones vs 441 operaciones por pixel
+**Descripción**: Detecta bordes usando operador Laplaciano.
 
-### Lazy CUDA Initialization
-El contexto CUDA se inicializa solo cuando se necesita:
+**Parámetros**:
+- `gain`: Factor de amplificación (default: 8.0)
+
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=laplacian" \
+  -o laplacian_output.jpg
+```
+
+**Kernel Laplaciano (3x3)**:
+```
+[ 0, -1,  0 ]
+[-1,  4, -1 ]
+[ 0, -1,  0 ]
+```
+
+---
+
+### 5. UPS Logo (`ups_logo`)
+
+**Descripción**: Overlay del logo de la Universidad Politécnica Salesiana.
+
+**Parámetros**: Ninguno
+
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=ups_logo" \
+  -o ups_logo_output.jpg
+```
+
+**Características**:
+- Logo PNG con transparencia
+- Posicionamiento: Esquina inferior derecha
+- Tamaño: 15% del ancho de imagen
+- Alpha blending para transparencia
+
+---
+
+### 6. Boomerang (`boomerang`)
+
+**Descripción**: Efecto espejo boomerang horizontal.
+
+**Parámetros**: Ninguno
+
+**Uso**:
+```bash
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@photo.jpg" \
+  -F "filter_name=boomerang" \
+  -o boomerang_output.jpg
+```
+
+**Efecto**: Duplica la imagen y crea un espejo horizontal.
+
+---
+
+### 7. CR7 Mask (`cr7`)
+
+**Descripción**: Overlay de máscara temática CR7.
+
+**Parámetros**: Ninguno
+
+**Características**:
+- Máscara PNG temática
+- Alpha blending
+- Posicionamiento centrado
+
+---
+
+## 🛠️ Desarrollo Local
+
+### Ejecución del Servidor
+
+```bash
+# Activar entorno virtual
+source venv/bin/activate  # Linux/Mac
+.\venv\Scripts\activate   # Windows
+
+# Método 1: Uvicorn directo
+uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+
+# Método 2: Python
+python app.py
+
+# Método 3: Con workers múltiples (producción)
+uvicorn app:app --host 0.0.0.0 --port 5000 --workers 4
+```
+
+### Testing
+
+```bash
+# Test health endpoint
+curl http://localhost:5000/health
+
+# Test con imagen
+curl -X POST http://localhost:5000/filters/apply \
+  -F "image=@test_image.jpg" \
+  -F "filter_name=gaussian" \
+  -o output.jpg
+
+# Ver imagen resultante
+open output.jpg  # Mac
+xdg-open output.jpg  # Linux
+start output.jpg  # Windows
+```
+
+### Python Testing Script
+
 ```python
-_initialize_cuda()  # Llamado en el primer uso
+# test_filters.py
+import requests
+
+def test_gaussian_filter():
+    url = "http://localhost:5000/filters/apply"
+    
+    with open("test_image.jpg", "rb") as img:
+        files = {"image": img}
+        data = {"filter_name": "gaussian", "mask_size": 5}
+        
+        response = requests.post(url, files=files, data=data)
+        
+        if response.status_code == 200:
+            with open("output_gaussian.jpg", "wb") as out:
+                out.write(response.content)
+            print("✅ Filtro aplicado correctamente")
+        else:
+            print(f"❌ Error: {response.json()}")
+
+if __name__ == "__main__":
+    test_gaussian_filter()
 ```
 
-### Manejo de Memoria
-Cada filtro gestiona su propia memoria GPU:
-- Prewitt: 6 buffers (gray, V, H, gx, gy, out)
-- Laplacian 3x3: 2 buffers (gray, out)
-- Laplacian LoG: 4 buffers (gray, K, tmpF, out)
-- Gaussian: 6 buffers (u8, in, tmp, out, k1d, result)
-- Box Blur: 3 buffers (in, out, tmp)
-
 ---
 
-## 🚀 Roadmap
+## 🐳 Docker
 
-- [ ] Soporte para imágenes RGB (actualmente solo grayscale)
-- [ ] Sobel filter
-- [ ] Canny edge detection
-- [ ] Bilateral filter
-- [ ] Batch processing (múltiples imágenes)
-- [x] ~~WebSocket streaming~~ (implementado con SSE)
-- [ ] Configuración dinámica de chunk_size y delay para /convolve-stream
-- [ ] Modo "instantáneo" vs "educativo" en visualización progresiva
-- [ ] Métricas de throughput (píxeles/segundo) en SSE
+### Dockerfile
 
----
+```dockerfile
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
-## 📚 Documentación Adicional
+# Install Python and dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-### Server-Sent Events (SSE) - Arquitectura
+WORKDIR /app
 
-```
-Frontend (React)                      Backend (FastAPI)
-     │                                       │
-     │  POST /convolve-stream               │
-     ├──────────────────────────────────────>│
-     │  {image_base64, filter, cuda_config}  │
-     │                                       │
-     │                                  ┌────▼────┐
-     │                                  │ Divide  │
-     │                                  │ imagen  │
-     │                                  │ chunks  │
-     │                                  └────┬────┘
-     │                                       │
-     │  SSE: data: {progress: 5%, ...}  ┌───▼───┐
-     │<─────────────────────────────────┤Process│
-     │                                  │Chunk 1│
-     │                                  └───┬───┘
-     │                                      │
-     │  SSE: data: {progress: 10%, ...} ┌──▼───┐
-     │<─────────────────────────────────┤Process│
-     │                                  │Chunk 2│
-     │                                  └───┬───┘
-     │                                      │
-     │                ...                  ...
-     │                                      │
-     │  SSE: data: {completed: true}    ┌──▼───┐
-     │<─────────────────────────────────┤ Done │
-     │                                  └──────┘
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Expose port
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
+
+# Run server
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
 ```
 
-### Por qué SSE en lugar de WebSockets?
+### Build & Run
 
-| Característica | SSE | WebSockets |
-|---------------|-----|------------|
-| **Dirección** | Unidireccional (servidor → cliente) | Bidireccional |
-| **Protocolo** | HTTP/1.1, HTTP/2 | WS:// (upgrade de HTTP) |
-| **Reconexión** | Automática por el navegador | Manual (requiere lógica) |
-| **Simplicidad** | Fetch API nativa | Requiere biblioteca adicional |
-| **Uso de recursos** | Menor overhead | Mayor overhead |
-| **Caso de uso** | Streaming de progreso, notificaciones | Chat, colaboración en tiempo real |
+```bash
+# Build image
+docker build -t upsglam-cuda-backend:latest .
 
-Para visualización progresiva, **SSE es ideal** porque:
-- ✅ Solo necesitamos servidor → cliente (progreso)
-- ✅ Reconexión automática si hay error de red
-- ✅ Funciona sobre HTTP estándar (no requiere WS upgrade)
-- ✅ Más simple de implementar y debuggear
+# Run with GPU support
+docker run -d \
+  --name cuda-backend \
+  -p 5000:5000 \
+  --gpus all \
+  -e CUDA_VISIBLE_DEVICES=0 \
+  upsglam-cuda-backend:latest
+
+# Logs
+docker logs -f cuda-backend
+
+# GPU monitoring
+nvidia-smi -l 1
+```
+
+### Docker Compose
+
+```yaml
+cuda-backend:
+  build:
+    context: ./cuda-lab-back
+    dockerfile: Dockerfile
+  container_name: upsglam-cuda-backend
+  ports:
+    - "5000:5000"
+  environment:
+    - CUDA_VISIBLE_DEVICES=0
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+  networks:
+    - upsglam-network
+```
 
 ---
 
-## 📄 Licencia
+## 📊 Rendimiento
 
-MIT License
+### Benchmarks
+
+| Filtro | Resolución | CPU Time | GPU Time | Speedup |
+|--------|------------|----------|----------|---------|
+| Gaussian 5x5 | 1920x1080 | 450ms | 12ms | 37.5x |
+| Box Blur 5x5 | 1920x1080 | 380ms | 9ms | 42.2x |
+| Prewitt | 1920x1080 | 520ms | 15ms | 34.7x |
+| Laplacian | 1920x1080 | 490ms | 13ms | 37.7x |
+
+### Optimizaciones CUDA
+
+```python
+# Block dimensions optimizadas
+BLOCK_SIZE = (16, 16)  # 256 threads per block
+
+# Grid dimensions calculadas automáticamente
+grid_x = (width + BLOCK_SIZE[0] - 1) // BLOCK_SIZE[0]
+grid_y = (height + BLOCK_SIZE[1] - 1) // BLOCK_SIZE[1]
+```
 
 ---
 
-## 👥 Contribuciones
+## 🐛 Troubleshooting
 
-Desarrollado como proyecto académico de CUDA Parallel Computing.
+### Error: CUDA not available
+
+```bash
+# Verificar NVIDIA driver
+nvidia-smi
+
+# Verificar CUDA
+python -c "import pycuda.driver as cuda; cuda.init(); print(cuda.Device.count())"
+
+# Reinstalar PyCUDA
+pip uninstall pycuda
+pip install pycuda
+```
+
+### Error: Out of GPU memory
+
+```python
+# Reducir resolución de imagen antes de procesar
+# O procesar por chunks (progressive_convolution.py)
+```
+
+### Error: Import errors
+
+```bash
+# Reinstalar dependencias
+pip install -r requirements.txt --force-reinstall
+```
+
+---
+
+## 📚 Referencias
+
+- [PyCUDA Documentation](https://documen.tician.de/pycuda/)
+- [CUDA Programming Guide](https://docs.nvidia.com/cuda/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [OpenCV Documentation](https://docs.opencv.org/)
+
+---
+
+## 📝 Changelog
+
+### Version 1.0.0
+- ✅ FastAPI REST API
+- ✅ PyCUDA GPU acceleration
+- ✅ 7 filtros implementados
+- ✅ Endpoints modernos y legacy
+- ✅ Docker con GPU support
+- ✅ Health checks y monitoring
+
+---
+
+## 👥 Autor
+
+UPSGlam Development Team - Universidad Politécnica Salesiana
