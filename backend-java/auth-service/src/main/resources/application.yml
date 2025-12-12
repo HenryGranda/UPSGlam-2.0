@@ -18,10 +18,10 @@ firebase:
   credentials:
     path: ${FIREBASE_CREDENTIALS_PATH:classpath:firebase-credentials.json}
   project-id: ${FIREBASE_PROJECT_ID:upsglam-8c88f}
-  database-id: ${FIREBASE_DATABASE_ID:db-auth}
+  database-id: ${FIREBASE_DATABASE_ID:(default)}
   api-key: ${FIREBASE_API_KEY}
   storage:
-    bucket: ${FIREBASE_STORAGE_BUCKET:upsglam-8c88f.appspot.com}
+    bucket: ${FIREBASE_STORAGE_BUCKET:upsglam-8c88f.firebasestorage.app}
     folders:
       avatars: avatars
 
