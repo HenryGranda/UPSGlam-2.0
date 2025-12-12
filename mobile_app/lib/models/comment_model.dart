@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'avatars.dart'; 
 
 class CommentModel {
   final String id;
@@ -17,10 +18,14 @@ class CommentModel {
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
     final createdAt = _parseCreatedAt(json['createdAt']);
+
+    final rawPhoto = json['userPhotoUrl'] as String?;
+    final avatarPath = avatarAssetFromName(rawPhoto); 
+
     return CommentModel(
       id: (json['id'] ?? json['iid'] ?? '') as String,
       username: json['username'] ?? 'unknown',
-      avatar: json['userPhotoUrl'] ?? 'assets/images/user_profile.png',
+      avatar: avatarPath,
       text: json['text'] ?? '',
       timestamp: _formatDate(createdAt),
     );

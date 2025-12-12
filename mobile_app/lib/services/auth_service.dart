@@ -87,7 +87,7 @@ class AuthService {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return;
     }
-    
+
     String msg = 'Error ${res.statusCode} al registrarse';
     try {
       final data = jsonDecode(res.body);
@@ -142,12 +142,14 @@ class AuthService {
   }
 
   /// ==========================
-  /// PATCH /users/me → actualizar perfil (si luego lo usas)
+  /// PATCH /users/me → actualizar perfil
+  /// Ahora también permite actualizar photoUrl (avatar)
   /// ==========================
   Future<Map<String, dynamic>> updateProfile({
     String? username,
     String? fullName,
     String? bio,
+    String? photoUrl, 
   }) async {
     final idToken = await getIdToken();
     if (idToken == null) {
@@ -158,6 +160,7 @@ class AuthService {
     if (username != null) payload['username'] = username;
     if (fullName != null) payload['fullName'] = fullName;
     if (bio != null) payload['bio'] = bio;
+    if (photoUrl != null) payload['photoUrl'] = photoUrl; 
 
     final baseUrl = await ApiConfig.requireBaseUrl();
     final uri = Uri.parse('$baseUrl/users/me');
@@ -233,6 +236,4 @@ class AuthService {
     if (id is String && id.isNotEmpty) return id;
     return null;
   }
-
-
 }

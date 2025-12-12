@@ -107,9 +107,8 @@ class PostService {
       'filter': filter,
       'mediaUrl': mediaUrl,
       'mediaType': 'image/jpeg',
-      // estos campos los ignorará el backend si usa el usuario autenticado
       'username': username,
-      'userPhotoUrl': userPhotoUrl,
+      'userPhotoUrl': userPhotoUrl,   
     });
 
     final resp = await http.post(
