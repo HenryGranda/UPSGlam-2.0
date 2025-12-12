@@ -36,6 +36,23 @@ class _CreatePostViewState extends State<CreatePostView> {
   bool _previewEnabled = false;
   bool _applyingFilter = false; // indica si se está aplicando un filtro
 
+  @override
+  void initState() {
+    super.initState();
+    // Escuchar cambios en el texto para actualizar el estado del botón
+    _descriptionController.addListener(() {
+      setState(() {
+        // El estado se actualiza cuando el texto cambia
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   /// Filtros tal cual los espera el backend + nombre amigable
   final List<Map<String, String>> _filterOptions = [
     {'code': 'gaussian', 'label': 'Gaussian Blur'},
@@ -43,7 +60,6 @@ class _CreatePostViewState extends State<CreatePostView> {
     {'code': 'prewitt', 'label': 'Prewitt'},
     {'code': 'laplacian', 'label': 'Laplacian'},
     {'code': 'ups_logo', 'label': 'UPS Logo'},
-    {'code': 'ups_color', 'label': 'UPS Color'},
     {'code': 'boomerang', 'label': 'Boomerang'},
     {'code': 'cr7', 'label': 'CR7 Mask'},
   ];

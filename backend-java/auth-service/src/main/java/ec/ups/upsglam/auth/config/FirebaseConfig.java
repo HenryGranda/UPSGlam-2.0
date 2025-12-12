@@ -12,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,12 +22,6 @@ import java.io.InputStream;
 @Configuration
 @Slf4j
 public class FirebaseConfig {
-
-    private final ResourceLoader resourceLoader;
-
-    public FirebaseConfig(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
-    }
 
     @Value("${firebase.credentials.path}")
     private String credentialsPath;
@@ -48,8 +40,9 @@ public class FirebaseConfig {
         log.info("Inicializando Firebase App...");
         log.info("Cargando credenciales desde: {}", credentialsPath);
         
-        Resource resource = resourceLoader.getResource(credentialsPath);
-        InputStream serviceAccount = resource.getInputStream();
+        // Remover prefijo "file:" si existe para usar FileInputStream directamente
+        String cleanPath = credentialsPath.replace("file:", "");
+        InputStream serviceAccount = new java.io.FileInputStream(cleanPath);
 
         FirebaseOptions.Builder optionsBuilder = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -92,8 +85,8 @@ public class FirebaseConfig {
         // Para databases personalizados, usar FirestoreOptions directamente
         log.info("Usando database personalizado de Firestore: {}", databaseId);
         try {
-            Resource resource = resourceLoader.getResource(credentialsPath);
-            InputStream serviceAccount = resource.getInputStream();
+            String cleanPath = credentialsPath.replace("file:", "");
+            InputStream serviceAccount = new java.io.FileInputStream(cleanPath);
             
             com.google.cloud.firestore.FirestoreOptions firestoreOptions = 
                 com.google.cloud.firestore.FirestoreOptions.newBuilder()
@@ -111,8 +104,8 @@ public class FirebaseConfig {
 
     @Bean
     public Storage storage() throws IOException {
-        Resource resource = resourceLoader.getResource(credentialsPath);
-        InputStream serviceAccount = resource.getInputStream();
+        String cleanPath = credentialsPath.replace("file:", "");
+        InputStream serviceAccount = new java.io.FileInputStream(cleanPath);
         
         return StorageOptions.newBuilder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))

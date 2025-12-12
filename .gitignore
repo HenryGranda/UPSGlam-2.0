@@ -141,3 +141,8 @@ coverage/
 flutter/
 **/GeneratedPluginRegistrant.*
 
+# Backend configuration files with API keys and secrets
+backend-java/.env
+backend-java/docker-compose.yml
+backend-java/auth-service/src/main/resources/application-docker.yml
+backend-java/post-service/src/main/resources/application-docker.yml

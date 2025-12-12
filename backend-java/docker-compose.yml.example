@@ -1,0 +1,160 @@
+# ============================================================
+# UPSGlam 2.0 - Docker Compose Example
+# ============================================================
+# Copy this file to docker-compose.yml and configure your credentials
+# NEVER commit docker-compose.yml to git!
+# 
+# Setup Instructions:
+# 1. Copy this file: cp docker-compose.yml.example docker-compose.yml
+# 2. Copy .env.example to .env: cp .env.example .env
+# 3. Edit .env with your actual credentials
+# 4. Make sure firebase-credentials.json exists in this directory
+# 5. Run: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # CUDA Backend (PyCUDA) - Puerto 5000
+  # ============================================================
+  cuda-backend:
+    build:
+      context: ./cuda-lab-back
+      dockerfile: Dockerfile
+    container_name: upsglam-cuda-backend
+    image: upsglam-cuda-backend:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - upsglam-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================
+  # Auth Service (Spring WebFlux + Firebase) - Puerto 8082
+  # ============================================================
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: upsglam-auth-service
+    image: upsglam-auth-service:latest
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=docker
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase-credentials.json
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      # Mount Firebase credentials (create this file first)
+      - ./firebase-credentials.json:/app/firebase-credentials.json:ro
+    networks:
+      - upsglam-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ============================================================
+  # Post Service (Spring WebFlux + Firebase + Supabase) - Puerto 8081
+  # ============================================================
+  post-service:
+    build:
+      context: ./post-service
+      dockerfile: Dockerfile
+    container_name: upsglam-post-service
+    image: upsglam-post-service:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_PROFILES_ACTIVE=docker
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_DB_HOST=${SUPABASE_DB_HOST}
+      - SUPABASE_DB_PORT=${SUPABASE_DB_PORT:-6543}
+      - SUPABASE_DB_NAME=${SUPABASE_DB_NAME:-postgres}
+      - SUPABASE_DB_USER=${SUPABASE_DB_USER}
+      - SUPABASE_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      # Mount Firebase credentials (create this file first)
+      - ./firebase-credentials.json:/app/firebase-credentials.json:ro
+    networks:
+      - upsglam-network
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ============================================================
+  # API Gateway (Spring Cloud Gateway) - Puerto 8080
+  # ============================================================
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: upsglam-api-gateway
+    image: upsglam-api-gateway:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xmx256m -Xms128m
+    networks:
+      - upsglam-network
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - post-service
+      - cuda-backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# ============================================================
+# Red compartida para comunicación entre contenedores
+# ============================================================
+networks:
+  upsglam-network:
+    driver: bridge
+    name: upsglam-network
+
+# ============================================================
+# Volúmenes (opcional para persistencia)
+# ============================================================
+volumes:
+  cuda-cache:
+    name: upsglam-cuda-cache

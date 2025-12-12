@@ -1,0 +1,293 @@
+# Application configuration for Docker deployment
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  
+  cloud:
+    gateway:
+      routes:
+        # ===============================
+        # AUTH SERVICE ROUTES (Docker)
+        # ===============================
+        - id: auth-service-register
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/register
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-login
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/login
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-me
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/me
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-users
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Follow/Unfollow routes
+        - id: auth-service-follow-user
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/follows
+            - Method=POST
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-unfollow-user
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}
+            - Method=DELETE
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-follow-stats
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/stats
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-followers
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/followers
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        - id: auth-service-following
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/auth/follows/{userId}/following
+            - Method=GET
+          filters:
+            - RewritePath=/api/auth/(?<segment>.*), /api/$\{segment}
+        
+        # ===============================
+        # POST SERVICE ROUTES (Docker)
+        # ===============================
+        - id: post-service-images-upload
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/images/upload
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-images-preview
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/images/preview
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-feed
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/feed
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-create-post
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-get-post
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-delete-post
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}
+            - Method=DELETE
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-update-caption
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/caption
+            - Method=PATCH
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-user-posts
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/user/{userId}
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Likes
+        - id: post-service-like-post
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/likes
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-unlike-post
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/likes
+            - Method=DELETE
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-get-likes
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/likes
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Comments
+        - id: post-service-add-comment
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/comments
+            - Method=POST
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-get-comments
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/comments
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-delete-comment
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/comments/{commentId}
+            - Method=DELETE
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-user-comments
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/users/{userId}/comments
+            - Method=GET
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: post-service-update-comment    
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/posts/{postId}/comments/{commentId}
+            - Method=PUT
+          filters:
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # ===============================
+        # CUDA SERVICE ROUTES (Docker)
+        # ===============================
+        - id: cuda-service-list-filters
+          uri: http://cuda-backend:5000
+          predicates:
+            - Path=/api/filters
+            - Method=GET
+          filters:
+            - RewritePath=/api/filters, /filters
+        
+        - id: cuda-service-apply-filter
+          uri: http://cuda-backend:5000
+          predicates:
+            - Path=/api/filters/{filterName}
+            - Method=POST
+          filters:
+            - RewritePath=/api/filters/(?<filterName>.*), /filters/$\{filterName}
+        
+        # ===============================
+        # HEALTH CHECKS (Docker)
+        # ===============================
+        - id: auth-service-health
+          uri: http://auth-service:8082
+          predicates:
+            - Path=/api/health/auth
+          filters:
+            - RewritePath=/api/health/auth, /actuator/health
+        
+        - id: post-service-health
+          uri: http://post-service:8081
+          predicates:
+            - Path=/api/health/posts
+          filters:
+            - RewritePath=/api/health/posts, /actuator/health
+        
+        - id: cuda-service-health
+          uri: http://cuda-backend:5000
+          predicates:
+            - Path=/api/health/cuda
+          filters:
+            - RewritePath=/api/health/cuda, /health
+      
+      # Global CORS Configuration
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Content-Type
+              - Authorization
+            maxAge: 3600
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    root: INFO
+    ec.ups.upsglam: DEBUG
+    org.springframework.cloud.gateway: DEBUG
