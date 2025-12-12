@@ -3,6 +3,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/home/upsglam_shell.dart';
 import 'services/auth_service.dart';
 
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const UPSGlamApp());

@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../ip_config/ip_config_screen.dart';
 import '../auth/register_screen.dart';
 
+
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
 
@@ -88,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loggingIn = true);
     try {
-      await AuthService.instance.loginWithGoogle();
+      //await AuthService.instance.loginWithGoogle();
       widget.onLoginSuccess();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loggingIn = true);
     try {
-      await AuthService.instance.loginWithFacebook();
+      //await AuthService.instance.loginWithFacebook();
       widget.onLoginSuccess();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

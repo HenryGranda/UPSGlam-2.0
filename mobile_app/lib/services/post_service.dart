@@ -12,22 +12,16 @@ class PostService {
   PostService._();
   static final PostService instance = PostService._();
 
-  /// =============
-  /// HEADERS CON TOKEN
-  /// =============
+  /// HEADERS CON TOKEN + X-User-Id/Username
   Future<Map<String, String>> _authHeaders({bool json = false}) async {
     final token = await AuthService.instance.getIdToken();
 
-    // Leemos los datos del usuario desde el storage
     final userData = await AuthService.instance.getStoredUser();
     final userId = (userData?['id'] ?? userData?['uid'])?.toString();
     final username = userData?['username'] as String?;
 
     final headers = <String, String>{};
-
-    if (json) {
-      headers['Content-Type'] = 'application/json';
-    }
+    if (json) headers['Content-Type'] = 'application/json';
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
@@ -37,22 +31,18 @@ class PostService {
     if (username != null && username.isNotEmpty) {
       headers['X-Username'] = username;
     }
-
     return headers;
   }
 
   /// SUBIR IMAGEN A SUPABASE (POST /images/upload)
-  /// Body: multipart/form-data con campo "image"
   Future<String> uploadImage(File imageFile) async {
     final baseUrl = await ApiConfig.requireBaseUrl();
-    final uri = Uri.parse('$baseUrl/images/upload'); // gateway: /api/images/upload
-
-    const fieldName = 'image';
+    final uri = Uri.parse('$baseUrl/images/upload');
 
     final request = http.MultipartRequest('POST', uri)
       ..files.add(
         await http.MultipartFile.fromPath(
-          fieldName,
+          'image',
           imageFile.path,
           contentType: MediaType('image', 'jpeg'),
         ),
@@ -61,26 +51,19 @@ class PostService {
     final response = await request.send();
     final body = await response.stream.bytesToString();
 
-    // debug opcional
-    print('/images/upload BODY => $body');
-
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'Error ${response.statusCode} al subir imagen: $body',
-      );
+      throw Exception('Error ${response.statusCode} al subir imagen: $body');
     }
 
     final json = jsonDecode(body) as Map<String, dynamic>;
     final mediaUrl = json['imageUrl'] as String?;
-
     if (mediaUrl == null || mediaUrl.isEmpty) {
-      throw Exception('Respuesta sin imageUrl válida al subir imagen: $json');
+      throw Exception('Respuesta sin imageUrl valida al subir imagen: $json');
     }
-
     return mediaUrl;
   }
 
-  /// CREAR POST  (POST /posts)
+  /// CREAR POST (POST /posts)
   Future<Map<String, dynamic>> createPost({
     required File imageFile,
     required String caption,
@@ -90,16 +73,15 @@ class PostService {
   }) async {
     final baseUrl = await ApiConfig.requireBaseUrl();
 
-    // Asegurarnos de que haya sesión
     final idToken = await AuthService.instance.getIdToken();
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('No hay sesión activa para crear post');
+      throw Exception('No hay sesion activa para crear post');
     }
 
-    // 1) Subimos imagen
+    final headers = await _authHeaders(json: true);
+
     final mediaUrl = await uploadImage(imageFile);
 
-    // 2) Creamos el post
     final uri = Uri.parse('$baseUrl/posts');
 
     final body = jsonEncode({
@@ -108,17 +90,10 @@ class PostService {
       'mediaUrl': mediaUrl,
       'mediaType': 'image/jpeg',
       'username': username,
-      'userPhotoUrl': userPhotoUrl,   
+      'userPhotoUrl': userPhotoUrl,
     });
 
-    final resp = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: body,
-    );
+    final resp = await http.post(uri, headers: headers, body: body);
 
     if (resp.statusCode != 200 && resp.statusCode != 201) {
       throw Exception(
@@ -134,8 +109,7 @@ class PostService {
     final baseUrl = await ApiConfig.requireBaseUrl();
     final uri = Uri.parse('$baseUrl/feed?page=0&size=20');
 
-    final headers = await _authHeaders(); // intenta mandar token si hay
-
+    final headers = await _authHeaders();
     final resp = await http.get(uri, headers: headers.isEmpty ? null : headers);
 
     if (resp.statusCode != 200) {
@@ -150,9 +124,7 @@ class PostService {
     return posts;
   }
 
-  /// ==========================
   /// LIKES
-  /// ==========================
   Future<void> toggleLike({
     required String postId,
     required bool currentlyLiked,
@@ -160,16 +132,12 @@ class PostService {
     final baseUrl = await ApiConfig.requireBaseUrl();
     final uri = Uri.parse('$baseUrl/posts/$postId/likes');
 
-    // headers con JSON + Authorization + X-User-Id / X-Username
     final headers = await _authHeaders(json: true);
-
     late http.Response resp;
 
     if (currentlyLiked) {
-      // ya estaba likeado → UNLIKE
       resp = await http.delete(uri, headers: headers);
     } else {
-      // no estaba likeado → LIKE
       resp = await http.post(uri, headers: headers);
     }
 
@@ -180,17 +148,12 @@ class PostService {
     }
   }
 
-  /// ==========================
   /// COMENTARIOS
-  /// ==========================
-
   Future<List<CommentModel>> fetchComments(String postId) async {
     final baseUrl = await ApiConfig.requireBaseUrl();
     final uri = Uri.parse('$baseUrl/posts/$postId/comments');
 
-    // Mandamos token y headers extra
     final headers = await _authHeaders();
-
     final res = await http.get(uri, headers: headers.isEmpty ? null : headers);
 
     if (res.statusCode != 200) {
@@ -199,13 +162,8 @@ class PostService {
       );
     }
 
-    final body = res.body;
-    print('🗨️ fetchComments($postId) BODY => $body');
-
-    final decoded = jsonDecode(body);
-
+    final decoded = jsonDecode(res.body);
     List<dynamic> rawList;
-
     if (decoded is List) {
       rawList = decoded;
     } else if (decoded is Map<String, dynamic>) {
@@ -232,9 +190,7 @@ class PostService {
     final res = await http.put(
       uri,
       headers: headers,
-      body: jsonEncode({
-        'text': newText,
-      }),
+      body: jsonEncode({'text': newText}),
     );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -247,8 +203,6 @@ class PostService {
     return CommentModel.fromJson(data);
   }
 
-
-  /// Devuelve el CommentModel creado por el backend
   Future<CommentModel> addComment({
     required String postId,
     required String text,
@@ -257,10 +211,9 @@ class PostService {
 
     final idToken = await AuthService.instance.getIdToken();
     if (idToken == null || idToken.isEmpty) {
-      throw Exception('No hay sesión activa para comentar');
+      throw Exception('No hay sesion activa para comentar');
     }
 
-    // datos usuario
     final userData = await AuthService.instance.getStoredUser();
     final userId = (userData?['id'] ?? userData?['uid']) as String?;
     final username = (userData?['username'] as String?) ?? 'unknown';
@@ -268,13 +221,7 @@ class PostService {
 
     final uri = Uri.parse('$baseUrl/posts/$postId/comments');
 
-    final headers = <String, String>{
-      'Authorization': 'Bearer $idToken',
-      'Content-Type': 'application/json',
-    };
-    if (userId != null && userId.isNotEmpty) {
-      headers['X-User-Id'] = userId;
-    }
+    final headers = await _authHeaders(json: true);
 
     final res = await http.post(
       uri,
@@ -295,37 +242,16 @@ class PostService {
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return CommentModel.fromJson(data);
   }
-  
 
-  /// DELETE /posts/{postId}/comments/{commentId}
   Future<void> deleteComment({
     required String postId,
     required String commentId,
   }) async {
     final baseUrl = await ApiConfig.requireBaseUrl();
 
-    final idToken = await AuthService.instance.getIdToken();
-    if (idToken == null || idToken.isEmpty) {
-      throw Exception('No hay sesión activa para eliminar comentario');
-    }
-
-    final userData = await AuthService.instance.getStoredUser();
-    final userId = (userData?['id'] ?? userData?['uid'])?.toString();
-    final username = userData?['username'] as String?;
+    final headers = await _authHeaders(json: true);
 
     final uri = Uri.parse('$baseUrl/posts/$postId/comments/$commentId');
-
-    final headers = <String, String>{
-      'Authorization': 'Bearer $idToken',
-      'Content-Type': 'application/json',
-    };
-
-    if (userId != null && userId.isNotEmpty) {
-      headers['X-User-Id'] = userId;      // debe coincidir con el que se guardó
-    }
-    if (username != null && username.isNotEmpty) {
-      headers['X-Username'] = username;
-    }
 
     final res = await http.delete(uri, headers: headers);
 
@@ -334,5 +260,79 @@ class PostService {
         'Error ${res.statusCode} al eliminar comentario: ${res.body}',
       );
     }
+  }
+
+  /// PATCH /posts/{postId}/caption
+  Future<void> updatePostCaption({
+    required String postId,
+    required String newCaption,
+  }) async {
+    final baseUrl = await ApiConfig.requireBaseUrl();
+    final headers = await _authHeaders(json: true);
+
+    final uri = Uri.parse('$baseUrl/posts/$postId/caption');
+
+    final res = await http.patch(
+      uri,
+      headers: headers,
+      body: jsonEncode({'caption': newCaption}),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Error ${res.statusCode} al actualizar caption: ${res.body}',
+      );
+    }
+  }
+
+  /// DELETE /posts/{postId}
+  Future<void> deletePost(String postId) async {
+    final baseUrl = await ApiConfig.requireBaseUrl();
+    final headers = await _authHeaders(json: true);
+
+    final uri = Uri.parse('$baseUrl/posts/$postId');
+
+    final res = await http.delete(uri, headers: headers);
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Error ${res.statusCode} al eliminar post: ${res.body}',
+      );
+    }
+  }
+
+  Future<List<dynamic>> fetchPostsByUsername(String username) async {
+    final baseUrl = await ApiConfig.requireBaseUrl();
+
+    final idToken = await AuthService.instance.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('No hay sesion activa');
+    }
+
+    final clean = username.startsWith('@') ? username.substring(1) : username;
+
+    final uri = Uri.parse('$baseUrl/posts/user/$clean');
+
+    final res = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $idToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Error ${res.statusCode} al cargar posts de usuario: ${res.body}',
+      );
+    }
+
+    final decoded = jsonDecode(res.body);
+
+    if (decoded is Map<String, dynamic> && decoded['posts'] is List) {
+      return decoded['posts'] as List<dynamic>;
+    }
+
+    throw Exception('Respuesta inesperada: ${res.body}');
   }
 }

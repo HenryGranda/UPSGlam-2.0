@@ -7,7 +7,6 @@ import '../../models/comment_model.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/post_service.dart';
-
 import 'home_feed_view.dart';
 import 'explore_view.dart';
 import 'create_post_view.dart';
@@ -44,12 +43,13 @@ class _UPSGlamShellState extends State<UPSGlamShell> {
 
   Future<void> _loadCurrentUser() async {
     try {
-      Map<String, dynamic>? data =
-          await AuthService.instance.getStoredUser();
+      Map<String, dynamic>? data;
 
-      if (data == null) {
-        data = await AuthService.instance.fetchCurrentUser();
-      }
+      // Siempre intentamos refrescar desde backend para obtener contadores al día
+      data = await AuthService.instance.fetchCurrentUser();
+
+      // Fallback a cache local si el llamado remoto falla o devuelve null
+      data ??= await AuthService.instance.getStoredUser();
 
       if (!mounted) return;
       setState(() {
@@ -64,6 +64,11 @@ class _UPSGlamShellState extends State<UPSGlamShell> {
         _loadingUser = false;
       });
     }
+  }
+
+  Future<void> _refreshAll() async {
+    await _loadCurrentUser();
+    await _loadFeed();
   }
 
   Future<void> _loadFeed() async {
@@ -124,13 +129,33 @@ class _UPSGlamShellState extends State<UPSGlamShell> {
     }
   }
 
-  // En UPSGlamShell (o donde tengas onAddComment)
-  void _addComment(String postId, CommentModel comment) {
+  void _incrementComments(String postId, int delta) {
     setState(() {
       final idx = _posts.indexWhere((p) => p.id == postId);
       if (idx != -1) {
-        // Si luego usas un campo commentsCount, lo actualizas aquí
+        _posts[idx].commentsCount =
+            (_posts[idx].commentsCount + delta).clamp(0, 999999);
       }
+    });
+  }
+
+  // Compatibilidad con PostDetailPage (suma 1)
+  void _addComment(String postId, CommentModel comment) {
+    _incrementComments(postId, 1);
+  }
+
+  void _updateCaption(String postId, String newCaption) {
+    setState(() {
+      final idx = _posts.indexWhere((p) => p.id == postId);
+      if (idx != -1) {
+        _posts[idx].caption = newCaption;
+      }
+    });
+  }
+
+  void _removePost(String postId) {
+    setState(() {
+      _posts.removeWhere((p) => p.id == postId);
     });
   }
 
@@ -155,13 +180,22 @@ class _UPSGlamShellState extends State<UPSGlamShell> {
                 currentUser: _currentUser,
                 onToggleLike: _toggleLike,
                 onAddComment: _addComment,
+                onCaptionUpdated: _updateCaption,
+                onDeletePost: _removePost,
+                viewerUsername: _currentUser?.username,
               ),
             ),
           );
         },
         onToggleLike: _toggleLike,
+        onRefresh: _refreshAll,
+        onCommentsChanged: _incrementComments,
+        onDeletePost: _removePost,
       ),
-      ExploreView(posts: _posts),
+      ExploreView(
+        posts: _posts,
+        onRefresh: _refreshAll,
+      ),
       CreatePostView(
         currentUser: _currentUser,
         onPublish: (_) {}, // no la usamos, recargamos el feed al volver
@@ -176,6 +210,10 @@ class _UPSGlamShellState extends State<UPSGlamShell> {
         currentUser: _currentUser,
         onLogout: widget.onLogout,
         onProfileUpdated: _loadCurrentUser,
+        onRefresh: _refreshAll,
+        onDeletePost: _removePost,
+        onCaptionUpdated: _updateCaption,
+        viewerUsername: _currentUser?.username,
       ),
     ];
 

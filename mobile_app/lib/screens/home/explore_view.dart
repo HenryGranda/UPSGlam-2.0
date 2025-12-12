@@ -7,8 +7,13 @@ import 'ui_helpers.dart';
 
 class ExploreView extends StatefulWidget {
   final List<PostModel> posts;
+  final Future<void> Function()? onRefresh;
 
-  const ExploreView({super.key, required this.posts});
+  const ExploreView({
+    super.key,
+    required this.posts,
+    this.onRefresh,
+  });
 
   @override
   State<ExploreView> createState() => _ExploreViewState();
@@ -25,6 +30,62 @@ class _ExploreViewState extends State<ExploreView> {
       return formatUsername(p.username).toLowerCase().contains(q) ||
           p.caption.toLowerCase().contains(q);
     }).toList();
+
+    Widget gridContent;
+
+    if (filtered.isEmpty) {
+      gridContent = ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 200),
+          Center(
+            child: Text(
+              'No se encontraron resultados',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ],
+      );
+    } else {
+      gridContent = GridView.builder(
+        padding: const EdgeInsets.all(1),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 1,
+          crossAxisSpacing: 1,
+        ),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final post = filtered[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PostDetailPage(
+                    post: post,
+                    currentUser: null,
+                    onToggleLike: (id) {},
+                    onAddComment: (id, c) {},
+                  ),
+                ),
+              );
+            },
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Image(
+                image: buildImageProvider(post.imageUrl),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey.shade300,
+                  child: const Icon(Icons.image, size: 30),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
 
     return Column(
       children: [
@@ -51,7 +112,7 @@ class _ExploreViewState extends State<ExploreView> {
               TextField(
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
-                  hintText: 'Buscar usuarios o publicaciones…',
+                  hintText: 'Buscar usuarios o publicaciones',
                   isDense: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
@@ -69,54 +130,12 @@ class _ExploreViewState extends State<ExploreView> {
           ),
         ),
 
-        // Grid de imágenes
+        // Grid de imágenes con pull-to-refresh
         Expanded(
-          child: filtered.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No se encontraron resultados',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(1),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 1,
-                    crossAxisSpacing: 1,
-                  ),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final post = filtered[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PostDetailPage(
-                              post: post,
-                              currentUser: null,
-                              onToggleLike: (id) {},
-                              onAddComment: (id, c) {},
-                            ),
-                          ),
-                        );
-                      },
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Image(
-                          image: buildImageProvider(post.imageUrl),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade300,
-                            child: const Icon(Icons.image, size: 30),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          child: RefreshIndicator(
+            onRefresh: widget.onRefresh ?? () async {},
+            child: gridContent,
+          ),
         ),
       ],
     );
