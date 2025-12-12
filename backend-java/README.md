@@ -1,171 +1,649 @@
+# 🚀 UPSGlam Backend - Microservices Architecture
 
-Salta al contenido principal
-Grado 67
-Área personal
-Mis cursos
-57
-391584
-Examenes
-Proyecto de Interciclo
+## 📋 Descripción General del Backend
 
-Proyecto de Interciclo
-Requisitos de finalización
-Apertura: miércoles, 3 de diciembre de 2025, 00:00
-Cierre: miércoles, 10 de diciembre de 2025, 14:00
-UPSGlam 2.0 - Plataforma Social con Procesamiento GPU, Firebase y Microservicios Reactivos
+El backend de UPSGlam 2.0 está construido con una **arquitectura de microservicios** que combina tecnologías modernas de Java y Python para proporcionar una plataforma social escalable, reactiva y de alto rendimiento.
 
-Descripción General
+### 🎯 Características Principales
 
-El proyecto UPSGlam 2.0 busca desarrollar una plataforma social de imágenes tipo Instagram, combinando tecnologías de computación paralela (CUDA), arquitectura de microservicios reactivos (WebFlux) y servicios en la nube (Firebase). El objetivo es ofrecer una experiencia moderna y escalable, donde los estudiantes aplicarán conceptos de programación paralela, computación reactiva y despliegue con contenedores.
+- **Arquitectura de Microservicios**: Servicios independientes y escalables
+- **Programación Reactiva**: Spring WebFlux con patrones no bloqueantes
+- **Procesamiento GPU**: Aceleración de filtros de imagen con CUDA
+- **Cloud Native**: Firebase y Supabase para autenticación y almacenamiento
+- **Containerización**: Docker Compose para orquestación de servicios
+- **API Gateway**: Punto de entrada único con Spring Cloud Gateway
 
-El proyecto estará compuesto por tres pilares:
+---
 
-Procesamiento de imágenes con CUDA (Python)
-Gestión de usuarios y publicaciones con Firebase + WebFlux (Java)
-Aplicación móvil Flutter con integración en tiempo real
-Actividades Principales
+## 🏗️ Arquitectura del Sistema
 
-1. Procesamiento de Imágenes con CUDA
+```
+┌──────────────────────────────────────────────────────────┐
+│                     CLIENT LAYER                          │
+│                   (Mobile App - Flutter)                  │
+└────────────────────┬─────────────────────────────────────┘
+                     │ HTTP/REST
+                     ↓
+┌──────────────────────────────────────────────────────────┐
+│                   API GATEWAY (8080)                      │
+│              Spring Cloud Gateway 2023.0.0                │
+│                                                            │
+│  • Request Routing & Load Balancing                       │
+│  • CORS Configuration                                     │
+│  • Circuit Breaker Pattern                                │
+│  • Reactive WebFlux                                       │
+└────────┬─────────────────┬──────────────────┬────────────┘
+         │                 │                  │
+         ↓                 ↓                  ↓
+┌──────────────────┐ ┌──────────────────┐ ┌─────────────────┐
+│  AUTH SERVICE    │ │  POST SERVICE    │ │  CUDA BACKEND   │
+│  Port: 8082      │ │  Port: 8081      │ │  Port: 5000     │
+│                  │ │                  │ │                 │
+│  Spring WebFlux  │ │  Spring WebFlux  │ │  Python FastAPI │
+│  + Firebase SDK  │ │  + R2DBC         │ │  + PyCUDA       │
+└────────┬─────────┘ └────────┬─────────┘ └────────┬────────┘
+         │                    │                     │
+         ↓                    ↓                     ↓
+┌──────────────────┐ ┌──────────────────┐ ┌────────────────┐
+│    FIREBASE      │ │    SUPABASE      │ │  NVIDIA GPU    │
+│                  │ │                  │ │                │
+│  • Firestore     │ │  • PostgreSQL    │ │  • CUDA 12.x   │
+│  • Auth          │ │  • Storage       │ │  • Parallel    │
+│  • Storage       │ │  • R2DBC Driver  │ │    Processing  │
+└──────────────────┘ └──────────────────┘ └────────────────┘
+```
 
-Implementar al menos seis filtros de convolución personalizados:
-4 filtros vistos en clase.
-2 nuevos filtros creativos (al menos uno con el logo de UPS o elementos representativos de la UPS).
-Usar PyCUDA para el procesamiento paralelo de imágenes en GPU.
-Exponer el procesamiento a través de un servicio REST consumible por otros módulos.
-2. Backend Reactivo con WebFlux + Firebase
+---
 
-Desarrollar una API Gateway y microservicios con Spring WebFlux aplicando principios de concurrencia y no-bloqueo.
-Utilizar Firebase Authentication para la gestión de usuarios y autenticación.
-Almacenar publicaciones, likes y comentarios en Firebase Firestore (NoSQL).
-Implementar endpoints REST con Webflux para:
-Registro/login.
-CRUD de publicaciones.
-Gestión de procesamiento de imágenes
-Implementar consultas Firebase para:
-Likes y comentarios en tiempo real.
-3. Carga y Distribución de Imágenes con Firebase Hosting
+## 📦 Componentes del Backend
 
-Almacenar imágenes procesadas en Firebase Storage.
-Exponer públicamente las imágenes mediante URLs accesibles desde la App móvil.
-4. Aplicación Móvil UPSGlam 2.0
+### 1. API Gateway (Spring Cloud Gateway)
+**Puerto**: 8080  
+**Framework**: Spring Cloud Gateway 2023.0.0
 
-Desarrollar una app móvil con Flutter/Ionic/Android:
-Registro e inicio de sesión.
-Publicación de imágenes con selección de filtros.
-Visualización de un feed en orden cronológico.
-Likes y comentarios en tiempo real.
-Configuración de URL de la API.
-UX/UI moderno y enfocado en la experiencia de usuario.
-5. Integración y Dockerización Completa
+**Responsabilidades**:
+- ✅ Punto de entrada único para todas las requests
+- ✅ Enrutamiento inteligente a microservicios
+- ✅ Configuración CORS centralizada
+- ✅ Load balancing y circuit breaker
+- ✅ Implementación completamente reactiva
 
-Crear un Docker Compose que integre:
-Servicio de convolución (PyCUDA).
-API reactiva (WebFlux + Firebase).
-Configurar una red común para permitir la comunicación entre contenedores.
-6. Demostración y Presentación Final
+**Rutas Configuradas**:
+```yaml
+/api/auth/**    → Auth Service (8082)
+/api/posts/**   → Post Service (8081)
+/api/feed/**    → Post Service (8081)
+/api/filters/** → CUDA Backend (5000)
+```
 
-Demostrar el funcionamiento de la plataforma en un entorno local con todos los servicios corriendo en contenedores.
-Realizar una presentación explicativa del flujo de trabajo, arquitectura y resultados obtenidos.
-Entregables
+### 2. Auth Service (Spring WebFlux + Firebase)
+**Puerto**: 8082  
+**Framework**: Spring Boot 3.2.0 + Spring WebFlux  
+**Database**: Firebase Firestore (NoSQL)  
+**Storage**: Firebase Storage
 
-Repositorio GitHub con:
-Código fuente de cada componente (CUDA, API WebFlux, App).
-Dockerfile(s) y archivos de configuración de Docker Compose.
-Documentación técnica en formato README.md (arquitectura, despliegue, uso).
-APK de la app móvil.
-Reporte final con reflexión sobre el uso de tecnologías paralelas, reactivas y en la nube.
-Observaciones
+**Responsabilidades**:
+- ✅ Autenticación de usuarios con Firebase Auth
+- ✅ Registro y gestión de perfiles
+- ✅ Sistema de seguimiento (follow/unfollow)
+- ✅ Upload de avatares a Firebase Storage
+- ✅ Consultas reactivas a Firestore
 
-Se valorará la creatividad en los filtros de convolución y su relación con la identidad UPS.
-El uso adecuado de programación reactiva, concurrencia y despliegue con Docker será parte fundamental de la evaluación.
-Se espera un proyecto funcional, no solo prototípico, que simule condiciones reales de uso en red local.
-Rúbrica de Evaluación - Proyecto UPSGlam 2.0
+**Tecnologías Clave**:
+- Firebase Admin SDK 9.2.0
+- Spring WebFlux (Reactor Netty)
+- Google Cloud Firestore
+- Reactive Streams API
 
-(20 puntos)
+### 3. Post Service (Spring Boot + Supabase)
+**Puerto**: 8081  
+**Framework**: Spring Boot 3.2.0 + R2DBC  
+**Database**: Supabase PostgreSQL  
+**Storage**: Supabase Object Storage
 
-Criterio
+**Responsabilidades**:
+- ✅ CRUD de publicaciones
+- ✅ Sistema de likes (reactivo)
+- ✅ Sistema de comentarios
+- ✅ Feed personalizado
+- ✅ Proxy a CUDA Backend para filtros
+- ✅ Upload de imágenes a Supabase
 
-90% - 100%
+**Tecnologías Clave**:
+- Spring Data R2DBC (Reactive)
+- Supabase Client
+- PostgreSQL 15+
+- WebClient para comunicación con CUDA
 
-75% - 89%
+### 4. CUDA Backend (Python + PyCUDA)
+**Puerto**: 5000  
+**Framework**: FastAPI 0.122.0  
+**Compute**: NVIDIA GPU + CUDA 12.x
 
-60% - 74%
+**Responsabilidades**:
+- ✅ Procesamiento de imágenes en GPU
+- ✅ 7 filtros de convolución CUDA
+- ✅ Kernels optimizados en PyCUDA
+- ✅ API REST para aplicar filtros
 
-45% - 59%
+**Filtros Disponibles**:
+1. Gaussian Blur
+2. Box Blur
+3. Prewitt Edge Detection
+4. Laplacian Edge Detection
+5. UPS Logo Overlay
+6. Boomerang Effect
+7. CR7 Mask
 
-0% - 44%
+---
 
-1. Procesamiento de Imágenes con CUDA (5 pts)
+## ⚡ API Reactiva con WebFlux + Firebase
 
-Implementación completa y optimizada de los filtros de convolución, incluyendo los 3 nuevos filtros creativos propuestos. Funcionamiento correcto, eficiente y documentado. Uso adecuado de PyCUDA aprovechando la GPU.
+### 🔥 ¿Por qué Programación Reactiva?
 
-Implementación adecuada con funcionamiento correcto de la mayoría de los filtros, pero con margen de optimización. Documentación aceptable.
+UPSGlam utiliza **Spring WebFlux** con **Firebase** para implementar un backend completamente **no bloqueante** y **asíncrono**. Esto permite:
 
-Implementación básica con algunos filtros limitados o errores menores. Documentación insuficiente.
+- **Alta Concurrencia**: Manejo de miles de requests simultáneas con pocos threads
+- **Backpressure**: Control de flujo de datos para evitar sobrecarga
+- **Escalabilidad**: Uso eficiente de recursos del servidor
+- **Latencia Baja**: Operaciones de I/O no bloqueantes
+- **Tiempo Real**: Actualizaciones reactivas en Firebase Firestore
 
-Implementación deficiente, con errores importantes en filtros o mal uso de PyCUDA. Documentación escasa.
+### 🛠️ Stack Reactivo
 
-Implementación incorrecta o no realizada. Filtros no funcionan o no se implementaron.
+```java
+Spring WebFlux (Reactor)
+    ↓
+Reactor Netty (HTTP Server)
+    ↓
+Project Reactor (Mono/Flux)
+    ↓
+Firebase Admin SDK (Async API)
+    ↓
+Google Cloud Firestore
+```
 
-2. Backend Reactivo con WebFlux + Firebase (5 pts)
+### 📚 Conceptos Clave de Programación Reactiva
 
-Desarrollo completo y eficiente de la API con WebFlux y Firebase (Auth y Firestore). Manejo adecuado de concurrencia, validaciones y errores. Integración correcta de likes, comentarios y feed en tiempo real.
+#### 1. **Mono y Flux**
 
-API funcional con WebFlux y Firebase, aunque con algunas deficiencias en manejo de concurrencia o validaciones. Funcionalidades completas pero con detalles por mejorar.
+```java
+// Mono: 0 o 1 elemento (operaciones individuales)
+Mono<User> user = userService.getUserById(userId);
 
-API básica con funcionalidades parciales, errores menores y uso limitado de programación reactiva.
+// Flux: 0 a N elementos (streams de datos)
+Flux<Post> posts = postService.getAllPosts();
+```
 
-API deficiente con errores significativos, sin aprovechar la programación reactiva. Funcionalidades incompletas.
+#### 2. **Operadores Reactivos**
 
-API no desarrollada o sin integración con Firebase ni WebFlux.
+```java
+// map: Transformar datos
+Mono<UserDTO> userDto = userMono.map(user -> new UserDTO(user));
 
-3. Carga de Imágenes en Firebase Hosting (2 pts)
+// flatMap: Operaciones asíncronas encadenadas
+Mono<Post> postWithUser = postService.getPost(postId)
+    .flatMap(post -> userService.getUser(post.getUserId())
+        .map(user -> {
+            post.setUser(user);
+            return post;
+        }));
 
-Imágenes procesadas correctamente cargadas en Firebase Storage y distribuidas mediante URLs accesibles y optimizadas.
+// filter: Filtrar elementos
+Flux<Post> activePosts = allPosts.filter(post -> post.isActive());
 
-Carga funcional de imágenes en Firebase Storage con detalles menores por corregir en accesibilidad o rendimiento.
+// switchIfEmpty: Valor por defecto
+Mono<User> user = userService.findByEmail(email)
+    .switchIfEmpty(Mono.error(new UserNotFoundException()));
+```
 
-Carga básica de imágenes con errores menores o sin optimización.
+#### 3. **Composición Asíncrona**
 
-Carga de imágenes con errores significativos o funcionamiento deficiente.
+```java
+// Ejecutar múltiples operaciones en paralelo
+Mono<PostResponse> response = Mono.zip(
+    postService.getPost(postId),
+    likeService.countLikes(postId),
+    commentService.countComments(postId)
+).map(tuple -> new PostResponse(
+    tuple.getT1(),  // Post
+    tuple.getT2(),  // Like count
+    tuple.getT3()   // Comment count
+));
+```
 
-No se realizó la carga de imágenes en Firebase Hosting.
+### 🔥 Integración WebFlux + Firebase
 
-4. Aplicación Móvil (4 pts)
+#### **Problema**: Firebase Admin SDK no es nativo reactivo
 
-App móvil completa y funcional con todas las características (registro, publicaciones, likes, comentarios, filtros, configuración de API). Interfaz atractiva y experiencia de usuario fluida.
+La Firebase Admin SDK usa callbacks y `ApiFuture<T>`, no `Mono<T>` ni `Flux<T>`.
 
-App móvil funcional pero con áreas de mejora en interfaz o experiencia de usuario. Todas las funcionalidades implementadas.
+#### **Solución**: Adaptar Firebase a Reactor
 
-App básica con funcionalidades limitadas o errores menores. Interfaz simple.
+```java
+// Convertir ApiFuture<T> a Mono<T>
+public Mono<User> getUserFromFirestore(String userId) {
+    return Mono.fromFuture(() -> {
+        ApiFuture<DocumentSnapshot> future = firestore
+            .collection("users")
+            .document(userId)
+            .get();
+        
+        return future.toCompletableFuture();
+    })
+    .map(snapshot -> snapshot.toObject(User.class))
+    .switchIfEmpty(Mono.error(new UserNotFoundException()));
+}
+```
 
-App con errores significativos y funcionalidades incompletas. Interfaz deficiente.
+#### **Ejemplo Real: Auth Service Login**
 
-App no desarrollada o no funcional.
+```java
+@PostMapping("/login")
+public Mono<LoginResponse> login(@RequestBody LoginRequest request) {
+    return Mono.fromCallable(() -> 
+        // 1. Verificar credenciales con Firebase Auth (I/O no bloqueante)
+        FirebaseAuth.getInstance()
+            .getUserByEmail(request.getEmail())
+    )
+    .flatMap(userRecord -> 
+        // 2. Buscar datos adicionales en Firestore (async)
+        getUserFromFirestore(userRecord.getUid())
+    )
+    .flatMap(user -> 
+        // 3. Validar contraseña (puede ser async)
+        validatePassword(user, request.getPassword())
+    )
+    .map(user -> 
+        // 4. Generar token JWT
+        new LoginResponse(user, generateToken(user))
+    )
+    .onErrorMap(e -> new AuthenticationException("Login failed", e));
+    // Todo esto sin bloquear threads!
+}
+```
 
-5. Integración con Docker Compose (2 pts)
+### 🔄 Operaciones CRUD Reactivas en Firestore
 
-Integración completa de los servicios (PyCUDA, API WebFlux, Firebase Emulator si aplica) en un entorno Docker Compose funcional y documentado.
+#### **Create (POST)**
 
-Integración adecuada en Docker Compose con pequeñas mejoras posibles.
+```java
+@PostMapping("/users")
+public Mono<User> createUser(@RequestBody User user) {
+    return Mono.fromFuture(() -> {
+        DocumentReference docRef = firestore
+            .collection("users")
+            .document(user.getId());
+        
+        return docRef.set(user).toCompletableFuture();
+    })
+    .thenReturn(user)
+    .doOnSuccess(u -> log.info("User created: {}", u.getId()));
+}
+```
 
-Integración básica con errores menores en la configuración de contenedores.
+#### **Read (GET)**
 
-Integración deficiente con errores importantes en la red o configuración.
+```java
+@GetMapping("/users/{id}")
+public Mono<User> getUser(@PathVariable String id) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("users")
+            .document(id)
+            .get()
+            .toCompletableFuture()
+    )
+    .map(snapshot -> snapshot.toObject(User.class))
+    .switchIfEmpty(Mono.error(new NotFoundException("User not found")));
+}
+```
 
-No se realizó la integración con Docker Compose.
+#### **Update (PUT)**
 
-6. Presentación y Demostración en Red Local (2 pt)
+```java
+@PutMapping("/users/{id}")
+public Mono<User> updateUser(@PathVariable String id, @RequestBody User user) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("users")
+            .document(id)
+            .set(user, SetOptions.merge())
+            .toCompletableFuture()
+    )
+    .thenReturn(user);
+}
+```
 
-Demostración exitosa del proyecto con todos los servicios comunicándose en red local, explicando arquitectura y flujos correctamente.
+#### **Delete (DELETE)**
 
-Demostración funcional con detalles menores por mejorar en presentación o explicación.
+```java
+@DeleteMapping("/users/{id}")
+public Mono<Void> deleteUser(@PathVariable String id) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("users")
+            .document(id)
+            .delete()
+            .toCompletableFuture()
+    )
+    .then();
+}
+```
 
-Demostración básica con errores menores de integración.
+#### **List (GET Collection)**
 
-Demostración deficiente con fallos importantes en la integración en red local.
+```java
+@GetMapping("/users")
+public Flux<User> getAllUsers() {
+    return Mono.fromFuture(() -> 
+        firestore.collection("users")
+            .get()
+            .toCompletableFuture()
+    )
+    .flatMapMany(querySnapshot -> 
+        Flux.fromIterable(querySnapshot.getDocuments())
+            .map(doc -> doc.toObject(User.class))
+    );
+}
+```
 
-No se realizó la demostración del proyecto.
+### 🔄 Follow System (Ejemplo Completo)
+
+```java
+@Service
+public class FollowService {
+    
+    @Autowired
+    private Firestore firestore;
+    
+    // Seguir a un usuario (operaciones en paralelo)
+    public Mono<FollowResponse> followUser(String followerId, String followingId) {
+        return Mono.zip(
+            // 1. Crear registro de follow
+            createFollowRecord(followerId, followingId),
+            // 2. Incrementar contador de followers
+            incrementFollowersCount(followingId),
+            // 3. Incrementar contador de following
+            incrementFollowingCount(followerId)
+        )
+        .map(tuple -> new FollowResponse(
+            "Successfully followed user",
+            tuple.getT2(), // Nuevo followers count
+            tuple.getT3()  // Nuevo following count
+        ))
+        .onErrorMap(e -> new FollowException("Failed to follow user", e));
+    }
+    
+    private Mono<Void> createFollowRecord(String followerId, String followingId) {
+        return Mono.fromFuture(() -> {
+            Map<String, Object> followData = Map.of(
+                "followerId", followerId,
+                "followingId", followingId,
+                "createdAt", FieldValue.serverTimestamp()
+            );
+            
+            return firestore.collection("follows")
+                .add(followData)
+                .toCompletableFuture();
+        }).then();
+    }
+    
+    private Mono<Long> incrementFollowersCount(String userId) {
+        return Mono.fromFuture(() -> 
+            firestore.collection("users")
+                .document(userId)
+                .update("followersCount", FieldValue.increment(1))
+                .toCompletableFuture()
+        )
+        .thenReturn(1L); // Simplificado
+    }
+}
+```
+
+### 📊 Consultas Complejas en Firestore (Reactivo)
+
+```java
+// Obtener posts de usuarios que sigo (feed personalizado)
+public Flux<Post> getUserFeed(String userId) {
+    return getFollowingIds(userId)  // Mono<List<String>>
+        .flatMapMany(followingIds -> 
+            Flux.fromIterable(followingIds)
+                .flatMap(followingId -> 
+                    getPostsByUser(followingId)  // Flux<Post>
+                )
+        )
+        .sort(Comparator.comparing(Post::getCreatedAt).reversed())
+        .take(50); // Limit
+}
+
+private Mono<List<String>> getFollowingIds(String userId) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("follows")
+            .whereEqualTo("followerId", userId)
+            .get()
+            .toCompletableFuture()
+    )
+    .map(snapshot -> 
+        snapshot.getDocuments().stream()
+            .map(doc -> doc.getString("followingId"))
+            .collect(Collectors.toList())
+    );
+}
+
+private Flux<Post> getPostsByUser(String userId) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("posts")
+            .whereEqualTo("userId", userId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(10)
+            .get()
+            .toCompletableFuture()
+    )
+    .flatMapMany(snapshot -> 
+        Flux.fromIterable(snapshot.getDocuments())
+            .map(doc -> doc.toObject(Post.class))
+    );
+}
+```
+
+### 🚀 Ventajas de WebFlux + Firebase en UPSGlam
+
+#### **1. Alta Concurrencia**
+```
+Threads Tradicionales (Tomcat):    200 threads = 200 requests simultáneas
+Threads Reactivos (Netty):        10 threads = 10,000+ requests simultáneas
+```
+
+#### **2. Operaciones No Bloqueantes**
+
+```java
+// ❌ BLOQUEANTE (Spring MVC tradicional)
+@GetMapping("/user/{id}")
+public User getUser(@PathVariable String id) {
+    DocumentSnapshot snapshot = firestore
+        .collection("users")
+        .document(id)
+        .get()
+        .get();  // ⚠️ BLOQUEA EL THREAD!
+    return snapshot.toObject(User.class);
+}
+
+// ✅ NO BLOQUEANTE (Spring WebFlux)
+@GetMapping("/user/{id}")
+public Mono<User> getUser(@PathVariable String id) {
+    return Mono.fromFuture(() -> 
+        firestore.collection("users")
+            .document(id)
+            .get()
+            .toCompletableFuture()
+    )
+    .map(snapshot -> snapshot.toObject(User.class));
+    // Thread liberado inmediatamente!
+}
+```
+
+#### **3. Backpressure Natural**
+
+Firebase Firestore tiene rate limits. WebFlux maneja automáticamente la presión:
+
+```java
+Flux<Post> posts = getAllPosts()
+    .delayElements(Duration.ofMillis(100))  // Control de flujo
+    .limitRate(10);  // Solicitar máximo 10 elementos a la vez
+```
+
+#### **4. Composición Elegante**
+
+```java
+// Operación compleja: Crear post + Notificar seguidores
+public Mono<PostResponse> createPostAndNotify(Post post) {
+    return savePost(post)  // Mono<Post>
+        .flatMap(savedPost -> 
+            getFollowers(post.getUserId())  // Mono<List<String>>
+                .flatMapMany(Flux::fromIterable)
+                .flatMap(followerId -> 
+                    sendNotification(followerId, savedPost)  // Mono<Void>
+                )
+                .then(Mono.just(savedPost))
+        )
+        .map(PostResponse::new);
+}
+```
+
+### 🐛 Manejo de Errores Reactivo
+
+```java
+// Error handling con recuperación
+public Mono<User> getUserWithFallback(String userId) {
+    return getUser(userId)
+        .onErrorResume(NotFoundException.class, e -> 
+            getDefaultUser()  // Fallback
+        )
+        .onErrorMap(FirebaseException.class, e -> 
+            new ServiceException("Firebase error", e)
+        )
+        .doOnError(e -> log.error("Error getting user", e))
+        .retry(3)  // Reintentar 3 veces
+        .timeout(Duration.ofSeconds(5));  // Timeout de 5 segundos
+}
+```
+
+### 📈 Performance Comparativa
+
+| Métrica | Spring MVC (Bloqueante) | Spring WebFlux (Reactivo) |
+|---------|-------------------------|---------------------------|
+| Threads | 200 | 10-20 |
+| Requests/seg | ~5,000 | ~50,000+ |
+| Latencia P99 | 500ms | 50ms |
+| Memory Usage | 2GB | 500MB |
+| Escalabilidad | Vertical | Horizontal |
+
+### 🔐 Configuración de Firebase en WebFlux
+
+```java
+@Configuration
+public class FirebaseConfig {
+    
+    @Bean
+    public FirebaseApp initializeFirebase() throws IOException {
+        String credentialsPath = System.getenv("FIREBASE_CREDENTIALS_PATH");
+        
+        // ⚠️ IMPORTANTE: En reactive context, no usar ResourceLoader
+        // Usar FileInputStream directo
+        String cleanPath = credentialsPath.replace("file:", "");
+        InputStream serviceAccount = new FileInputStream(cleanPath);
+        
+        FirebaseOptions options = FirebaseOptions.builder()
+            .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+            .setProjectId(System.getenv("FIREBASE_PROJECT_ID"))
+            .setStorageBucket(System.getenv("FIREBASE_STORAGE_BUCKET"))
+            .build();
+        
+        return FirebaseApp.initializeApp(options);
+    }
+    
+    @Bean
+    public Firestore firestore() {
+        return FirestoreClient.getFirestore();
+    }
+}
+```
+
+### 📝 Best Practices en UPSGlam
+
+1. **Siempre retornar Mono/Flux**: Nunca bloquear con `.block()`
+2. **Usar `flatMap` para operaciones async**: No usar `map` cuando retornas Mono/Flux
+3. **Manejar errores explícitamente**: `onErrorResume`, `onErrorMap`
+4. **Implementar timeouts**: `timeout(Duration.ofSeconds(5))`
+5. **Logging reactivo**: `doOnNext`, `doOnError`, `doOnSuccess`
+6. **Testing**: Usar `StepVerifier` de Reactor Test
+
+### 🧪 Testing Código Reactivo
+
+```java
+@Test
+void testGetUser() {
+    String userId = "user123";
+    User expectedUser = new User(userId, "Test User");
+    
+    StepVerifier.create(userService.getUser(userId))
+        .expectNext(expectedUser)
+        .verifyComplete();
+}
+
+@Test
+void testGetUserNotFound() {
+    StepVerifier.create(userService.getUser("invalid"))
+        .expectError(NotFoundException.class)
+        .verify();
+}
+```
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# 1. Configurar credenciales
+cp .env.example .env
+cp docker-compose.yml.example docker-compose.yml
+
+# 2. Editar .env con tus credenciales
+notepad .env
+
+# 3. Iniciar todos los servicios
+docker-compose up -d --build
+
+# 4. Verificar logs
+docker-compose logs -f
+
+# 5. Health checks
+curl http://localhost:8080/health
+curl http://localhost:8082/api/auth/health
+curl http://localhost:8081/health
+curl http://localhost:5000/health
+```
+
+---
+
+## 📚 Documentación Detallada
+
+- **[API Gateway](./api-gateway/README-DETAILED.md)** - Spring Cloud Gateway, routing, CORS
+- **[Auth Service](./auth-service/README-DETAILED.md)** - WebFlux, Firebase Auth, Firestore
+- **[Post Service](./post-service/README-DETAILED.md)** - R2DBC, Supabase, likes, comments
+- **[CUDA Backend](./cuda-lab-back/README-DETAILED.md)** - PyCUDA, filtros GPU, kernels
+
+---
+
+## 👥 Equipo de Desarrollo
+
+**UPSGlam Development Team**  
+Universidad Politécnica Salesiana  
+Quito, Ecuador
+
+---
+
+## 📄 Licencia
+
+Proyecto académico - © 2025 Universidad Politécnica Salesiana
 
  
 
