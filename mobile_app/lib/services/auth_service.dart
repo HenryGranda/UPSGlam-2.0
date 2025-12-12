@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 import 'api_config.dart';
 
@@ -8,6 +11,8 @@ import 'api_config.dart';
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
+  // Client ID Web (client_type 3) desde google-services.json para obtener idToken en Android
+  static const _googleServerClientId = '412862037800-ecstj8tcrscnq1guu7f6kvtbjmvlacen.apps.googleusercontent.com';
 
   static const _keyIdToken = 'auth_id_token';
   static const _keyRefreshToken = 'auth_refresh_token';
@@ -91,6 +96,94 @@ class AuthService {
       }
     } catch (_) {}
     throw Exception(msg);
+  }
+
+  /// ==========================
+  /// LOGIN CON GOOGLE
+  /// ==========================
+  Future<void> loginWithGoogle() async {
+    final googleSignIn = GoogleSignIn(
+      serverClientId: _googleServerClientId,
+    );
+    // Forzamos cierre de sesión previo para que siempre muestre el selector de cuenta.
+    await googleSignIn.signOut();
+    await googleSignIn.disconnect().catchError((_) {});
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Inicio cancelado');
+    }
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+    final idToken = await userCred.user?.getIdToken(true);
+    // En firebase_auth 4.x el refreshToken puede venir null; usamos fallback vacío.
+    final refreshToken = userCred.user?.refreshToken ?? '';
+
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('No se pudo obtener token de Google');
+    }
+
+    // Guardamos token para llamar al backend (/auth/me)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyIdToken, idToken);
+    await prefs.setString(_keyRefreshToken, refreshToken);
+
+    // Intentamos traer el perfil desde backend (si existe); si no, queda con datos mínimos
+    final me = await fetchCurrentUser().catchError((_) => null);
+    if (me == null) {
+      await prefs.setString(
+        _keyUser,
+        jsonEncode({
+          'id': userCred.user?.uid,
+          'email': userCred.user?.email,
+          'username': userCred.user?.displayName ?? googleUser.displayName ?? '',
+          'fullName': userCred.user?.displayName ?? '',
+          'photoUrl': userCred.user?.photoURL,
+        }),
+      );
+    }
+  }
+
+  /// ==========================
+  /// LOGIN CON FACEBOOK
+  /// ==========================
+  Future<void> loginWithFacebook() async {
+    final result = await FacebookAuth.instance.login(permissions: ['email']);
+    if (result.status != LoginStatus.success) {
+      throw Exception('Login de Facebook cancelado o fallido');
+    }
+
+    final credential = FacebookAuthProvider.credential(result.accessToken!.token);
+    final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+    final idToken = await userCred.user?.getIdToken(true);
+    final refreshToken = userCred.user?.refreshToken ?? '';
+
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('No se pudo obtener token de Facebook');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyIdToken, idToken);
+    await prefs.setString(_keyRefreshToken, refreshToken);
+
+    final me = await fetchCurrentUser().catchError((_) => null);
+    if (me == null) {
+      await prefs.setString(
+        _keyUser,
+        jsonEncode({
+          'id': userCred.user?.uid,
+          'email': userCred.user?.email,
+          'username': userCred.user?.displayName ?? '',
+          'fullName': userCred.user?.displayName ?? '',
+          'photoUrl': userCred.user?.photoURL,
+        }),
+      );
+    }
   }
 
   /// ==========================

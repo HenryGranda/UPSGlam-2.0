@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/upsglam_shell.dart';
 import 'services/auth_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const UPSGlamApp());
 }
 
@@ -20,9 +22,12 @@ class UPSGlamApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF003366),
+          seedColor: const Color(0xFF0B2545), // azul marino
+          primary: const Color(0xFF0B2545),
+          secondary: const Color(0xFFB23A48), // tomate oscuro
+          tertiary: const Color(0xFF1B3A57),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+        scaffoldBackgroundColor: const Color(0xFFF4F6FA),
       ),
       home: const _AuthGate(),
     );
