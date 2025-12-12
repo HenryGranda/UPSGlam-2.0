@@ -1,10 +1,13 @@
 // lib/screens/home/home_feed_view.dart
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../models/current_user.dart';
 import '../../models/post_model.dart';
 import '../../models/comment_model.dart';
 import '../../services/post_service.dart';
+import '../../services/audio_manager.dart';
 
 import 'public_profile_page.dart';
 import 'ui_helpers.dart';
@@ -167,11 +170,27 @@ class PostCard extends StatefulWidget {
 
 class _PostCardState extends State<PostCard> {
   late PostModel _post;
+  AudioPlayer? _audioPlayer;
+  bool _isMuted = false;
+  final AudioManager _audioManager = AudioManager();
 
   @override
   void initState() {
     super.initState();
     _post = widget.post;
+    _initAudio();
+  }
+
+  void _initAudio() {
+    debugPrint('🎵 DEBUG: Post ${_post.id} audioFile = ${_post.audioFile}');
+    if (_post.audioFile != null && _post.audioFile!.isNotEmpty) {
+      debugPrint('🎵 Inicializando AudioPlayer para: ${_post.audioFile}');
+      _audioPlayer = AudioPlayer();
+      _audioPlayer!.setReleaseMode(ReleaseMode.loop);
+      // NO reproducir automáticamente, solo cuando sea visible
+    } else {
+      debugPrint('⚠️ Post sin audioFile');
+    }
   }
 
   @override
@@ -180,6 +199,58 @@ class _PostCardState extends State<PostCard> {
     if (oldWidget.post != widget.post) {
       _post = widget.post;
     }
+  }
+
+  @override
+  void dispose() {
+    // Pausar audio si este post se está destruyendo
+    if (_audioPlayer != null) {
+      _audioManager.pauseAudio(_post.id);
+    }
+    _audioPlayer?.dispose();
+    super.dispose();
+  }
+
+  void _toggleMute() {
+    if (_audioPlayer == null) return;
+    setState(() {
+      _isMuted = !_isMuted;
+      _audioPlayer!.setVolume(_isMuted ? 0.0 : 1.0);
+    });
+  }
+
+  /// Se llama cuando el post se vuelve visible o invisible
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (_audioPlayer == null || _post.audioFile == null) return;
+
+    // Si es visible más del 50%, reproducir
+    if (info.visibleFraction > 0.5) {
+      debugPrint('👁️ Post ${_post.id} visible (${(info.visibleFraction * 100).toStringAsFixed(0)}%)');
+      _audioManager.playAudio(
+        postId: _post.id,
+        player: _audioPlayer!,
+        audioFile: _post.audioFile!,
+      );
+    } else {
+      // Si es menos del 50% visible, pausar
+      debugPrint('🙈 Post ${_post.id} no visible (${(info.visibleFraction * 100).toStringAsFixed(0)}%)');
+      _audioManager.pauseAudio(_post.id);
+    }
+  }
+
+  String _getAudioLabel() {
+    if (_post.audioFile == null) return '';
+    
+    final audioLabels = {
+      'Siuu.mp3': 'Siuuu',
+      'cancioncr7_FRPRUlK5.mp3': 'Canción CR7',
+      'vamonosamartecr7_p9FG2LGY.mp3': 'Vámonos a Amar',
+      'waka_IEJmUo0a.mp3': 'Waka Waka',
+      'kuduro_isTLScH6.mp3': 'Kuduro',
+      'nadiedominar_XcY3jlnG.mp3': 'Nadie Dominar',
+    };
+    
+    return audioLabels[_post.audioFile] ?? 'Audio';
   }
 
   @override
@@ -198,7 +269,10 @@ class _PostCardState extends State<PostCard> {
       );
     }
 
-    return Card(
+    return VisibilityDetector(
+      key: Key('post_${_post.id}'),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: Card(
       margin: EdgeInsets.zero,
       elevation: 0,
       color: Colors.white,
@@ -257,13 +331,72 @@ class _PostCardState extends State<PostCard> {
             onTap: widget.onOpen,
             child: AspectRatio(
               aspectRatio: 4 / 5,
-              child: Image(
-                image: buildImageProvider(_post.imageUrl),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.image, size: 40),
-                ),
+              child: Stack(
+                children: [
+                  Image(
+                    image: buildImageProvider(_post.imageUrl),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey.shade300,
+                      child: const Icon(Icons.image, size: 40),
+                    ),
+                  ),
+                  // Botón de mute/unmute si tiene audio
+                  if (_audioPlayer != null)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            _isMuted ? Icons.volume_off : Icons.volume_up,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          onPressed: _toggleMute,
+                          tooltip: _isMuted ? 'Activar audio' : 'Silenciar',
+                        ),
+                      ),
+                    ),
+                  // Indicador de música activa
+                  if (_audioPlayer != null)
+                    Positioned(
+                      bottom: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isMuted ? Icons.music_off : Icons.music_note,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getAudioLabel(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -351,6 +484,7 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
+    ),
     );
   }
 

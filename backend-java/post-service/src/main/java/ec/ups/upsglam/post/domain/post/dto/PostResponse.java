@@ -33,6 +33,9 @@ public class PostResponse {
 
     private String filter;
 
+    @JsonProperty("audioFile")
+    private String audioFile;
+
     private String description;
 
     @JsonProperty("createdAt")

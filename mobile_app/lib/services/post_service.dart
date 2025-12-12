@@ -68,6 +68,7 @@ class PostService {
     required File imageFile,
     required String caption,
     String? filter,
+    String? audioFile,
     String? username,
     String? userPhotoUrl,
   }) async {
@@ -87,6 +88,7 @@ class PostService {
     final body = jsonEncode({
       'caption': caption,
       'filter': filter,
+      'audioFile': audioFile,
       'mediaUrl': mediaUrl,
       'mediaType': 'image/jpeg',
       'username': username,

@@ -10,6 +10,7 @@ class PostModel {
   String imageUrl;
   String caption;
   String? filter;
+  String? audioFile;  // Nombre del audio en assets (ej: "waka_IEJmUo0a.mp3")
   int likes;
   bool liked;
   int commentsCount;
@@ -23,6 +24,7 @@ class PostModel {
     required this.imageUrl,
     required this.caption,
     this.filter,
+    this.audioFile,
     this.likes = 0,
     this.liked = false,
     this.commentsCount = 0,
@@ -46,6 +48,7 @@ class PostModel {
       imageUrl: (json['imageUrl'] ?? '') as String,
       caption: (json['description'] ?? '') as String,
       filter: json['filter'] as String?,
+      audioFile: json['audioFile'] as String?,
       likes: (json['likesCount'] ?? 0) as int,
       liked: (json['likedByMe'] ?? false) as bool,
       commentsCount: (json['commentsCount'] ?? 0) as int,
@@ -60,6 +63,7 @@ class PostModel {
       'imageUrl': imageUrl,
       'description': caption,
       'filter': filter,
+      'audioFile': audioFile,
       'likesCount': likes,
       'likedByMe': liked,
       'commentsCount': commentsCount,

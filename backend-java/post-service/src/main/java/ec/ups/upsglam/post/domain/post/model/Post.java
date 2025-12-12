@@ -40,6 +40,9 @@ public class Post {
     @Column("filter")
     private String filter;
 
+    @Column("audio_file")
+    private String audioFile;
+
     @Column("description")
     private String description;
 

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../../models/current_user.dart';
 import '../../models/post_model.dart';
@@ -29,6 +30,7 @@ class CreatePostView extends StatefulWidget {
 class _CreatePostViewState extends State<CreatePostView> {
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   String? _originalImagePath; // imagen original sin filtro
   String? _previewImagePath; // imagen a mostrar (puede ser original o filtrada)
@@ -50,6 +52,7 @@ class _CreatePostViewState extends State<CreatePostView> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -65,6 +68,17 @@ class _CreatePostViewState extends State<CreatePostView> {
   ];
 
   String? _selectedFilter; // filtro seleccionado actualmente
+  String? _selectedAudio; // audio seleccionado
+
+  // Audios disponibles en assets
+  final List<Map<String, String>> _audioOptions = [
+    {'file': 'Siuu.mp3', 'label': '⚽ Siuuu - CR7'},
+    {'file': 'cancioncr7_FRPRUlK5.mp3', 'label': '🎵 Canción CR7'},
+    {'file': 'vamonosamartecr7_p9FG2LGY.mp3', 'label': '❤️ Vámonos a Amar'},
+    {'file': 'waka_IEJmUo0a.mp3', 'label': '⚽ Waka Waka'},
+    {'file': 'kuduro_isTLScH6.mp3', 'label': '🔥 Kuduro'},
+    {'file': 'nadiedominar_XcY3jlnG.mp3', 'label': '🏆 Nadie Dominar'},
+  ];
 
   bool get _hasRealImage => _previewImagePath != null;
   bool get _canPublish =>
@@ -81,6 +95,7 @@ class _CreatePostViewState extends State<CreatePostView> {
       _originalImagePath = picked.path;
       _previewImagePath = picked.path;
       _selectedFilter = null; // reset filtro al tomar nueva foto
+      // No resetear _selectedAudio, puede mantenerlo
     });
   }
 
@@ -94,6 +109,7 @@ class _CreatePostViewState extends State<CreatePostView> {
       _originalImagePath = picked.path;
       _previewImagePath = picked.path;
       _selectedFilter = null; // reset filtro al elegir nueva foto
+      // No resetear _selectedAudio, puede mantenerlo
     });
   }
 
@@ -118,6 +134,15 @@ class _CreatePostViewState extends State<CreatePostView> {
         _previewImagePath = filteredPath;
         _selectedFilter = filterCode;
       });
+
+      // Reproducir el audio "Siuu" si es el filtro CR7
+      if (filterCode == 'cr7') {
+        try {
+          await _audioPlayer.play(AssetSource('audios/Siuu.mp3'));
+        } catch (e) {
+          debugPrint('Error al reproducir audio CR7: $e');
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -169,6 +194,7 @@ class _CreatePostViewState extends State<CreatePostView> {
         imageFile: File(_previewImagePath!),
         caption: caption,
         filter: _selectedFilter,
+        audioFile: _selectedAudio,
         username: user?.username,
         userPhotoUrl: user?.photoUrl,
       );
@@ -182,6 +208,7 @@ class _CreatePostViewState extends State<CreatePostView> {
         _originalImagePath = null;
         _previewImagePath = null;
         _selectedFilter = null;
+        _selectedAudio = null;
       });
 
       widget.onBack(); // vuelve al feed, donde recargas
@@ -462,6 +489,135 @@ class _CreatePostViewState extends State<CreatePostView> {
                         ],
                       ),
                   ],
+
+                  const SizedBox(height: 20),
+
+                  // SELECTOR DE MÚSICA
+                  Text(
+                    'Música del post (opcional)',
+                    style: theme.textTheme.titleSmall!
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selecciona una canción para tu publicación',
+                    style: theme.textTheme.bodySmall!.copyWith(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: Icon(
+                            _selectedAudio == null ? Icons.music_off : Icons.music_note,
+                            color: _selectedAudio == null ? Colors.grey : theme.colorScheme.primary,
+                          ),
+                          title: Text(
+                            _selectedAudio == null
+                                ? 'Sin música'
+                                : _audioOptions.firstWhere((a) => a['file'] == _selectedAudio)['label']!,
+                          ),
+                          trailing: _selectedAudio == null
+                              ? const Icon(Icons.arrow_drop_down)
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.play_arrow, size: 20),
+                                      onPressed: () async {
+                                        try {
+                                          await _audioPlayer.play(AssetSource('audios/$_selectedAudio'));
+                                        } catch (e) {
+                                          debugPrint('Error reproduciendo preview: $e');
+                                        }
+                                      },
+                                      tooltip: 'Previsualizar',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 20),
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedAudio = null;
+                                        });
+                                      },
+                                      tooltip: 'Quitar música',
+                                    ),
+                                  ],
+                                ),
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              builder: (context) => Container(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      child: Text(
+                                        'Selecciona una canción',
+                                        style: theme.textTheme.titleMedium!.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const Divider(),
+                                    ListTile(
+                                      leading: const Icon(Icons.music_off),
+                                      title: const Text('Sin música'),
+                                      selected: _selectedAudio == null,
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedAudio = null;
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    ..._audioOptions.map((audio) {
+                                      final file = audio['file']!;
+                                      final label = audio['label']!;
+                                      final selected = _selectedAudio == file;
+                                      return ListTile(
+                                        leading: Icon(
+                                          Icons.music_note,
+                                          color: selected ? theme.colorScheme.primary : null,
+                                        ),
+                                        title: Text(label),
+                                        selected: selected,
+                                        trailing: IconButton(
+                                          icon: const Icon(Icons.play_arrow, size: 20),
+                                          onPressed: () async {
+                                            try {
+                                              await _audioPlayer.play(AssetSource('audios/$file'));
+                                            } catch (e) {
+                                              debugPrint('Error reproduciendo: $e');
+                                            }
+                                          },
+                                        ),
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedAudio = file;
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 20),
 

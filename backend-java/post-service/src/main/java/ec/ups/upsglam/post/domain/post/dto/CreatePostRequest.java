@@ -23,6 +23,8 @@ public class CreatePostRequest {
     @Size(max = 500, message = "El caption no puede exceder 500 caracteres")
     private String caption;
     
+    private String audioFile;
+    
     private String mediaUrl;
     private String mediaType;
     private String username;

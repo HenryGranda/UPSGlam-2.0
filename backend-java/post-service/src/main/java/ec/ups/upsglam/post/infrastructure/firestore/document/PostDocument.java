@@ -25,6 +25,7 @@ public class PostDocument {
     private String userPhotoUrl;
     private String imageUrl;
     private String filter;
+    private String audioFile;
     private String description;
     private Instant createdAt;
     private Integer likesCount;
@@ -40,6 +41,7 @@ public class PostDocument {
         if (userPhotoUrl != null) map.put("userPhotoUrl", userPhotoUrl);
         if (imageUrl != null) map.put("imageUrl", imageUrl);
         if (filter != null) map.put("filter", filter);
+        if (audioFile != null) map.put("audioFile", audioFile);
         if (description != null) map.put("description", description);
         if (createdAt != null) map.put("createdAt", createdAt);
         if (likesCount != null) map.put("likesCount", likesCount);
@@ -58,6 +60,7 @@ public class PostDocument {
                 .userPhotoUrl((String) data.get("userPhotoUrl"))
                 .imageUrl((String) data.get("imageUrl"))
                 .filter((String) data.get("filter"))
+                .audioFile((String) data.get("audioFile"))
                 .description((String) data.get("description"))
                 .createdAt(convertToInstant(data.get("createdAt")))
                 .likesCount(data.get("likesCount") != null ? 

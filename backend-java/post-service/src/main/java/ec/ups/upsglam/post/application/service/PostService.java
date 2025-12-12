@@ -65,6 +65,7 @@ public class PostService {
                             .userPhotoUrl(request.getUserPhotoUrl())
                             .imageUrl(finalImageUrl)
                             .filter(request.getFilter())
+                            .audioFile(request.getAudioFile())
                             .description(request.getCaption())
                             .build();
 
@@ -203,6 +204,7 @@ public class PostService {
                 .userPhotoUrl(post.getUserPhotoUrl())
                 .imageUrl(post.getImageUrl())
                 .filter(post.getFilter())
+                .audioFile(post.getAudioFile())
                 .description(post.getDescription())
                 .createdAt(post.getCreatedAt() != null 
                     ? post.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime()
