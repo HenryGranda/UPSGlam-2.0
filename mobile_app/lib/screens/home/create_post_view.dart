@@ -38,6 +38,19 @@ class _CreatePostViewState extends State<CreatePostView> {
   bool _previewEnabled = false;
   bool _applyingFilter = false; // indica si se está aplicando un filtro
 
+  // 🚫 Palabras prohibidas (censura)
+  final List<String> _bannedWords = [
+    'messi',
+    'barcelona',
+    'visca barca',
+    'barça',
+    'hitler',
+    'nazi',
+    'puto',
+    'pendejo',
+    // Agrega más palabras según necesites
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -179,15 +192,53 @@ class _CreatePostViewState extends State<CreatePostView> {
     });
   }
 
+  // Validar si el texto contiene palabras prohibidas
+  bool _containsBannedWords(String text) {
+    final lowerText = text.toLowerCase();
+    for (var word in _bannedWords) {
+      if (lowerText.contains(word.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Obtener la primera palabra prohibida encontrada
+  String? _getFirstBannedWord(String text) {
+    final lowerText = text.toLowerCase();
+    for (var word in _bannedWords) {
+      if (lowerText.contains(word.toLowerCase())) {
+        return word;
+      }
+    }
+    return null;
+  }
+
   Future<void> _publish() async {
     if (!_canPublish || _previewImagePath == null) return;
+
+    final caption = _descriptionController.text.trim();
+
+    // 🚫 VALIDAR PALABRAS PROHIBIDAS
+    if (_containsBannedWords(caption)) {
+      final bannedWord = _getFirstBannedWord(caption);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🚫 Contenido no permitido: La palabra "$bannedWord" está prohibida',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.red[700],
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return; // NO permitir publicar
+    }
 
     try {
       setState(() {
         _publishing = true;
       });
-
-      final caption = _descriptionController.text.trim();
       final user = widget.currentUser;
 
       await PostService.instance.createPost(
