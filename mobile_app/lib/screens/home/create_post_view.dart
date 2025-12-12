@@ -33,14 +33,15 @@ class _CreatePostViewState extends State<CreatePostView> {
   bool _publishing = false;
   bool _previewEnabled = false;
 
-  /// Filtros tal cual los espera el backend
-  final List<String> _filters = [
-    'gaussian',
-    'box_blur',
-    'prewitt',
-    'laplacian',
-    'ups_logo',
-    'ups_color',
+  /// Filtros tal cual los espera el backend + nombre amigable
+  final List<Map<String, String>> _filterOptions = [
+    {'code': 'gaussian', 'label': 'Gauss Blur'},
+    {'code': 'box_blur', 'label': 'Blox Blur'},
+    {'code': 'prewitt', 'label': 'Prewitt'},
+    {'code': 'laplacian', 'label': 'Laplace'},
+    {'code': 'ups_logo', 'label': 'UPS Logo'},
+    {'code': 'ups_color', 'label': 'Boomerang'},
+    {'code': 'caras', 'label': 'Caras'},
   ];
 
   String? _selectedFilter; // este string va directo al backend
@@ -243,10 +244,11 @@ class _CreatePostViewState extends State<CreatePostView> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _filters.map((code) {
+                    children: _filterOptions.map((filter) {
+                      final code = filter['code']!;
                       final selected = _selectedFilter == code;
                       return ChoiceChip(
-                        label: Text(code),
+                        label: Text(filter['label']!),
                         selected: selected,
                         onSelected: (_) {
                           setState(() {

@@ -652,6 +652,7 @@ class LocalFilters {
         return applyBloxBlur(working, radius: 3, passes: 1);
       case 'ups_logo':
         return applyUpsLogo(working);
+      case 'ups_color':
       case 'boomerang':
         return applyBoomerang(working);
       case 'caras':
@@ -691,6 +692,7 @@ class LocalFilters {
       'prewitt': 'Prewitt (Bordes)',
       'laplacian': 'Laplace (Bordes)',
       'ups_logo': 'UPS Logo',
+      'ups_color': 'Boomerang',
       'boomerang': 'Boomerang',
       'caras': 'Caras',
     };
